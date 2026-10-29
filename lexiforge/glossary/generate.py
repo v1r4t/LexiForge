@@ -211,6 +211,10 @@ def _make_entry(term_id: str, canonical: str, category: str, origin: str,
         "scoring_aliases": _rule_aliases(latn),
         "category": category,
         "origin": origin,
+        # Convenience boolean kept in sync with `origin`. Several consumers were
+        # written against a `fictional` flag; emitting both prevents a silent
+        # split where every entry is treated as real.
+        "fictional": origin == "fictional",
         "freq_band": freq_band,
         "provenance": provenance,
     }
@@ -220,12 +224,21 @@ def _surfaces(entry: dict) -> list[str]:
     return [entry["canonical"], *entry["scoring_aliases"]]
 
 
-def generate(seed, n_fictional: int = 200, n_real: int = 1800) -> list[dict]:
-    """Build the synthetic glossary deterministically from ``seed``."""
+def generate(seed, n_fictional: int = 200, n_real: int = 1800,
+             real_terms: list[str] | None = None) -> list[dict]:
+    """Build the synthetic glossary deterministically from ``seed``.
+
+    ``real_terms`` overrides the bundled real vocabulary. The H1 stratum is
+    "terms baseline already recognises", so the real list must be genuine
+    banking vocabulary supplied by the caller, never synthesised here.
+    """
     rng = random.Random(seed)
     author = f"seed:{seed}"
 
-    real_source, real_label = _load_real_source()
+    if real_terms:
+        real_source, real_label = list(real_terms), "data/lexicon.json"
+    else:
+        real_source, real_label = _load_real_source()
     seen: set[str] = set()
     ordered_real: list[str] = []
     for name in real_source:
@@ -250,7 +263,7 @@ def generate(seed, n_fictional: int = 200, n_real: int = 1800) -> list[dict]:
             continue
         if _has_triple_onset(canonical):
             continue
-        if any(lev_distance(low, other) < 3 for other in forbidden):
+        if any(lev_distance(low, other) < 4 for other in forbidden):
             continue
         if any(lev_distance(low, other) < 3 for other in fict_surfaces):
             continue
@@ -282,31 +295,11 @@ def generate(seed, n_fictional: int = 200, n_real: int = 1800) -> list[dict]:
         rng.shuffle(shuffled)
         real_names = shuffled[:n_real]
     else:
+        # Curated real terms only. Synthesising extra "real" entries by
+        # concatenating modifiers produced hybrids like "BillDesk Swift" that
+        # the model has no prior for, which would silently destroy the very
+        # stratum H1 depends on ("terms baseline already recognises").
         real_names = ordered_real[:]
-        have = {n.casefold() for n in real_names}
-        expansion_pool = [f"{base} {mod}" for base in ordered_real for mod in REAL_MODIFIERS]
-        rng.shuffle(expansion_pool)
-        for candidate in expansion_pool:
-            if len(real_names) >= n_real:
-                break
-            name = unicodedata.normalize("NFC", candidate).strip()
-            low = name.casefold()
-            if low in have or low in seen:
-                continue
-            # Real namespace is taken as given (short acronyms are inherently
-            # close); expansions must still keep clear of every fictional term.
-            if any(lev_distance(low, f) < 3 for f in fict_canonicals):
-                continue
-            if any(lev_distance(low, a) < 3 for a in fict_surfaces):
-                continue
-            have.add(low)
-            seen.add(low)
-            real_names.append(name)
-        if len(real_names) < n_real:
-            raise ValueError(
-                f"could only build {len(real_names)}/{n_real} real terms; "
-                "extend BUNDLED_REAL_TERMS or REAL_MODIFIERS"
-            )
 
     real: list[dict] = []
     for i, name in enumerate(real_names, start=1):
@@ -343,3 +336,35 @@ def glossary_hash(path) -> str:
         for chunk in iter(lambda: fh.read(65536), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+# Extended second elements: the generator needs a deep pool to reach a glossary
+# size where a 200-term budget actually binds. Appended rather than edited into
+# the original tuple so the provenance of the original 60 stays readable.
+SECOND_ELEMENTS = tuple(SECOND_ELEMENTS) + (
+    "Vitta", "Nivesh", "Bhavishya", "Sampatti", "Aay", "Vyay", "Labh", "Hani",
+    "Rin", "Kisht", "Byaaj", "Mudra", "Punji", "Bhandar", "Koshik", "Peti",
+    "Locker", "Tijori", "Suraksha", "Kavach", "Dhaal", "Raksha", "Nigrani", "Nazar",
+    "Pramaan", "Pahchaan", "Pehchan", "Sanket", "Chinh", "Nishaan", "Mudraank", "Chhaap",
+    "Lekha", "Bahi", "Khataa", "Khaata", "Register", "Daftar", "File", "Parcha",
+    "Raseed", "Bil", "Invoice", "Voucher", "Cheque", "Draft", "Payorder", "Hundi",
+    "Sankhya", "Ginti", "Hisab", "Ganana", "Ganit", "Totals", "Balance", "Sheesh",
+    "Jama", "Nikasi", "Aamdani", "Kharcha", "Bachat", "Sanchay", "Jod", "Antar",
+    "Turant", "Tatkal", "Jhatpat", "Fauran", "Deri", "Samay", "Kal", "Aaj",
+    "Saptah", "Maah", "Varsh", "Tithi", "Taareekh", "Din", "Ghanta", "Pal",
+    "Chhota", "Bada", "Madhyam", "Ucch", "Neech", "Sthir", "Chal", "Gati",
+    "Pehla", "Doosra", "Teesra", "Antim", "Naya", "Purana", "Sada", "Vishesh",
+    "Sanyukt", "Alag", "Mukhya", "Sahayak", "Poorn", "Aadha", "Khaali", "Bhara",
+    "Safal", "Asafal", "Lambit", "Chaudi", "Patla", "Gehra", "Halka", "Bhaari",
+    "Ujjwal", "Chamak", "Roshni", "Deep", "Jyoti", "Kirna", "Rashmi", "Prabha",
+    "Vayu", "Jal", "Agni", "Prithvi", "Aakash", "Sagar", "Nadi", "Parvat",
+    "Vriksh", "Pushp", "Patra", "Beej", "Mool", "Shakha", "Daali", "Chhaya",
+    "Sewa", "Sahyog", "Sahayata", "Madad", "Sahare", "Bharosa", "Vishwas", "Aastha",
+    "Shanti", "Sukh", "Chain", "Aaram", "Swasthya", "Arogya", "Jeevan", "Aayu",
+    "Griha", "Ghar", "Nivas", "Avas", "Bhavan", "Dwar", "Dwaar", "Path",
+    "Marg", "Rasta", "Gali", "Chowk", "Bazaar", "Mandir", "Dukaan", "Vyapaar",
+    "Vanijya", "Vyavsay", "Kaam", "Kaaj", "Rojgar", "Naukri", "Seva", "Karya",
+    "Yojana", "Niti", "Niyam", "Kanoon", "Adhikar", "Kartavya", "Dand", "Shulk",
+    "Kar", "Tax", "Chhoot", "Rebate", "Bonus", "Inaam", "Puraskar", "Upahar",
+    "Sampark", "Sambandh", "Jodne", "Todne", "Bhejna", "Lena", "Dena", "Rokna",
+    "Kholna", "Band", "Chalu", "Rukna", "Chalna", "Daudna", "Ruk", "Chal",
+)

@@ -1,0 +1,79 @@
+{
+  "call_id": "c11",
+  "call_type": "forex_nri",
+  "speakers": [
+    "AGT",
+    "CUS",
+    "AGT",
+    "CUS",
+    "AGT"
+  ],
+  "mismatched_domain": false,
+  "turns": [
+    {
+      "idx": 0,
+      "speaker": "AGT",
+      "text": "Namaste sir, kaise madad karun aaj?",
+      "est_s": 4,
+      "glossary_terms": []
+    },
+    {
+      "idx": 1,
+      "speaker": "CUS",
+      "text": "Mujhe apna Jupiter Active check karwana hai aur transaction Shield bhi activate chahiye.",
+      "est_s": 9,
+      "glossary_terms": [
+        "R0240",
+        "R0422"
+      ]
+    },
+    {
+      "idx": 2,
+      "speaker": "AGT",
+      "text": "Abhi hum KhedVyapaar aur NirKist pe check kar rahe hain, thoda ruk jaiye.",
+      "est_s": 7,
+      "glossary_terms": [
+        "F0058",
+        "F0127"
+      ]
+    },
+    {
+      "idx": 3,
+      "speaker": "CUS",
+      "text": "Yaar mera Razorpay Active mein issue hai aur JivDhan bhi nahi chal raha, maine upi lite try kiya tha.",
+      "est_s": 10,
+      "glossary_terms": [
+        "R0524",
+        "F0067"
+      ]
+    },
+    {
+      "idx": 4,
+      "speaker": "AGT",
+      "text": "Theek hai, hum interest rate Plus aur TavLaabh se resolve kar denge.",
+      "est_s": 7,
+      "glossary_terms": [
+        "R0967",
+        "F0103"
+      ]
+    }
+  ],
+  "expected_real": [
+    "R0240",
+    "R0422",
+    "R0524",
+    "R0967"
+  ],
+  "expected_fictional": [
+    "F0058",
+    "F0127",
+    "F0067",
+    "F0103"
+  ],
+  "oov": [
+    "upi lite"
+  ],
+  "zero_turns": [
+    0
+  ]
+}

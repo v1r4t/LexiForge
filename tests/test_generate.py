@@ -62,7 +62,8 @@ class TestSchema(unittest.TestCase):
         for entry in _small():
             self.assertEqual(set(entry), {
                 "term_id", "canonical", "script_variants", "spoken_forms",
-                "scoring_aliases", "category", "origin", "freq_band", "provenance",
+                "scoring_aliases", "category", "origin", "fictional", "freq_band",
+                "provenance",
             })
             self.assertEqual(set(entry["script_variants"]), {"deva", "latn"})
             self.assertEqual(set(entry["provenance"]), {"source", "author"})

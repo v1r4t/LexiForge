@@ -1,0 +1,47 @@
+{
+  "call_id": "c10",
+  "call_type": "chequebook",
+  "speakers": ["AGT", "CUS", "AGT", "CUS", "AGT"],
+  "mismatched_domain": false,
+  "turns": [
+    {
+      "idx": 1,
+      "speaker": "AGT",
+      "text": "Namaste sir, bataiye kis tarah se main aapki madad kar sakta hoon?",
+      "est_s": 5,
+      "glossary_terms": []
+    },
+    {
+      "idx": 2,
+      "speaker": "CUS",
+      "text": "Mujhe cheque book chahiye tha, aur dekh raha tha nominee Smart ke baare mein.",
+      "est_s": 7,
+      "glossary_terms": ["nominee Smart"]
+    },
+    {
+      "idx": 3,
+      "speaker": "AGT",
+      "text": "Theek hai, hum transaction Lite aur KYC Direct se process shuru karenge aur MorMudra check kar lenge.",
+      "est_s": 10,
+      "glossary_terms": ["transaction Lite", "KYC Direct", "MorMudra"]
+    },
+    {
+      "idx": 4,
+      "speaker": "CUS",
+      "text": "Bas dhyaan rakhiye transaction Elite se kuch dikkat ho rahi thi, aur tokenised card ke liye bhi pooch raha tha.",
+      "est_s": 10,
+      "glossary_terms": ["transaction Elite"]
+    },
+    {
+      "idx": 5,
+      "speaker": "AGT",
+      "text": "Samajh gaya, JivMunafa aur RuvSugam ke saath know your customer Trust aur cheque book aapko jaldi bhej denge.",
+      "est_s": 10,
+      "glossary_terms": ["JivMunafa", "RuvSugam", "know your customer Trust"]
+    }
+  ],
+  "expected_real": ["R0589", "R0970", "R0909", "R1205", "R0797"],
+  "expected_fictional": ["F0153", "F0104", "F0106"],
+  "oov": ["tokenised card"],
+  "zero_turns": [1]
+}

@@ -1,0 +1,47 @@
+{
+  "call_id": "c19",
+  "call_type": "insurance_claim",
+  "speakers": ["AGT", "CUS", "AGT", "CUS", "AGT"],
+  "mismatched_domain": false,
+  "turns": [
+    {
+      "idx": 1,
+      "speaker": "AGT",
+      "text": "Namaste sir, main aapki madad ke liye call kiya hu, kis baare mein baat chahiye?",
+      "est_s": 8,
+      "glossary_terms": []
+    },
+    {
+      "idx": 2,
+      "speaker": "CUS",
+      "text": "Ji agent sahab, mujhe insurance claim check karwana hai, maine loan account Prime aur PhonePe Direct se payment kiya tha",
+      "est_s": 16,
+      "glossary_terms": ["R0617", "R0253"]
+    },
+    {
+      "idx": 3,
+      "speaker": "AGT",
+      "text": "Thoda wait kijiye, hum balance Assured aur CVV Reserve verify kar rahe hain",
+      "est_s": 12,
+      "glossary_terms": ["R1426", "R1322"]
+    },
+    {
+      "idx": 4,
+      "speaker": "CUS",
+      "text": "Haan ji, maine upi lite se bhi try kiya tha aur ab Aadhaar Reserve se verification chahiye",
+      "est_s": 16,
+      "glossary_terms": ["R0369"]
+    },
+    {
+      "idx": 5,
+      "speaker": "AGT",
+      "text": "Bilkul, NirAamdani aur NirLekha ke saath TavBachat aur JivMunafa par claim process karenge",
+      "est_s": 14,
+      "glossary_terms": ["F0101", "F0040", "F0104", "F0002"]
+    }
+  ],
+  "expected_real": ["R0617", "R0253", "R1426", "R1322", "R0369"],
+  "expected_fictional": ["F0101", "F0040", "F0104", "F0002"],
+  "oov": ["upi lite"],
+  "zero_turns": [1]
+}

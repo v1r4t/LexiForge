@@ -1,0 +1,75 @@
+{
+  "call_id": "c15",
+  "call_type": "card_limit",
+  "speakers": [
+    "AGT",
+    "CUS",
+    "AGT",
+    "CUS",
+    "AGT"
+  ],
+  "mismatched_domain": "banking",
+  "turns": [
+    {
+      "idx": 0,
+      "speaker": "AGT",
+      "text": "Namaste, main aapki madad karne ke liye yahan hoon, bataiye kya problem hai?",
+      "est_s": 7,
+      "glossary_terms": []
+    },
+    {
+      "idx": 1,
+      "speaker": "CUS",
+      "text": "Mera card ka limit badhana hai, kya aap EMI Plus ya VeloVishwas se check karwa sakte ho?",
+      "est_s": 11,
+      "glossary_terms": [
+        "EMI Plus",
+        "VeloVishwas"
+      ]
+    },
+    {
+      "idx": 2,
+      "speaker": "AGT",
+      "text": "Haan bilkul, ab hum credit limit Direct aur savings account Classic dekh rahe hain, VeloRupya bhi consider karenge.",
+      "est_s": 14,
+      "glossary_terms": [
+        "credit limit Direct",
+        "savings account Classic",
+        "VeloRupya"
+      ]
+    },
+    {
+      "idx": 3,
+      "speaker": "CUS",
+      "text": "Bas ye confirm karo ki BBPS Easy se payment ho jayega kya?",
+      "est_s": 8,
+      "glossary_terms": [
+        "BBPS Easy"
+      ]
+    },
+    {
+      "idx": 4,
+      "speaker": "AGT",
+      "text": "Ji haan, cheque Flex aur MorKharcha dono se aapka request process ho jayega, bas thoda wait kariye.",
+      "est_s": 13,
+      "glossary_terms": [
+        "cheque Flex",
+        "MorKharcha"
+      ]
+    }
+  ],
+  "expected_real": [
+    "EMI Plus",
+    "credit limit Direct",
+    "savings account Classic",
+    "BBPS Easy",
+    "cheque Flex"
+  ],
+  "expected_fictional": [
+    "VeloVishwas",
+    "VeloRupya",
+    "MorKharcha"
+  ],
+  "oov": [],
+  "zero_turns": [0]
+}

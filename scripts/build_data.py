@@ -37,7 +37,7 @@ def main() -> None:
     real_lexicon = [{"canonical": t["term"]} for t in lexicon["real_terms"]]
     brand_blocklist = [b.casefold() for b in lexicon["brand_blocklist"]]
 
-    entries = generate(SEED, n_fictional=200, n_real=1800)
+    entries = generate(SEED, n_fictional=780, n_real=180, real_terms=[t["term"] for t in lexicon["real_terms"]])
     violations = validate_mod(entries, real_lexicon, brand_blocklist)
     if violations:
         raise SystemExit("glossary invalid:\n" + "\n".join(violations[:20]))
