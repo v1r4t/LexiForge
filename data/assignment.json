@@ -1,0 +1,385 @@
+{
+  "0": {
+    "call_type": "mandate_fail",
+    "fictional": [
+      "F0010",
+      "F0053",
+      "F0161"
+    ],
+    "hard_negative_pair": [
+      "R1279",
+      "R0917"
+    ],
+    "oov": [],
+    "real": [
+      "R1171",
+      "R1677",
+      "R0917",
+      "R0204",
+      "R1279"
+    ]
+  },
+  "1": {
+    "call_type": "kyc_reverify",
+    "fictional": [
+      "F0152",
+      "F0013",
+      "F0175"
+    ],
+    "hard_negative_pair": null,
+    "oov": [],
+    "real": [
+      "R1341",
+      "R0320",
+      "R0644",
+      "R1514"
+    ]
+  },
+  "2": {
+    "call_type": "upi_failed",
+    "fictional": [
+      "F0060",
+      "F0089",
+      "F0126",
+      "F0200"
+    ],
+    "hard_negative_pair": [
+      "R0112",
+      "R0948"
+    ],
+    "oov": [],
+    "real": [
+      "R1280",
+      "R0112",
+      "R1023",
+      "R0863",
+      "R0948"
+    ]
+  },
+  "3": {
+    "call_type": "card_block",
+    "fictional": [
+      "F0150",
+      "F0176",
+      "F0009",
+      "F0095"
+    ],
+    "hard_negative_pair": null,
+    "oov": [],
+    "real": [
+      "R1112",
+      "R0651",
+      "R1007",
+      "R1311",
+      "R0075"
+    ]
+  },
+  "4": {
+    "call_type": "collections",
+    "fictional": [
+      "F0018",
+      "F0011",
+      "F0090",
+      "F0021"
+    ],
+    "hard_negative_pair": [
+      "R0966",
+      "R0266"
+    ],
+    "oov": [
+      "tokenised card"
+    ],
+    "real": [
+      "R0266",
+      "R0727",
+      "R0322",
+      "R0966",
+      "R1405"
+    ]
+  },
+  "5": {
+    "call_type": "loan_emi",
+    "fictional": [
+      "F0016",
+      "F0180",
+      "F0074",
+      "F0106"
+    ],
+    "hard_negative_pair": null,
+    "oov": [],
+    "real": [
+      "R1721",
+      "R1084",
+      "R0554",
+      "R1027"
+    ]
+  },
+  "6": {
+    "call_type": "fd_rates",
+    "fictional": [
+      "F0092",
+      "F0026",
+      "F0140",
+      "F0112"
+    ],
+    "hard_negative_pair": [
+      "R1489",
+      "R0366"
+    ],
+    "oov": [],
+    "real": [
+      "R0994",
+      "R1095",
+      "R1489",
+      "R0366"
+    ]
+  },
+  "7": {
+    "call_type": "netbanking_login",
+    "fictional": [
+      "F0064",
+      "F0030",
+      "F0047"
+    ],
+    "hard_negative_pair": [
+      "R0987",
+      "R0004"
+    ],
+    "oov": [],
+    "real": [
+      "R0987",
+      "R1690",
+      "R0434",
+      "R0004"
+    ]
+  },
+  "8": {
+    "call_type": "fraud_dispute",
+    "fictional": [
+      "F0047",
+      "F0117",
+      "F0151",
+      "F0193"
+    ],
+    "hard_negative_pair": [
+      "R0976",
+      "R0369"
+    ],
+    "oov": [],
+    "real": [
+      "R0976",
+      "R0455",
+      "R1065",
+      "R0369"
+    ]
+  },
+  "9": {
+    "call_type": "insurance",
+    "fictional": [
+      "F0068",
+      "F0013",
+      "F0025"
+    ],
+    "hard_negative_pair": null,
+    "oov": [],
+    "real": [
+      "R1085",
+      "R0538",
+      "R1027",
+      "R1583",
+      "R0508"
+    ]
+  },
+  "10": {
+    "call_type": "chequebook",
+    "fictional": [
+      "F0153",
+      "F0104",
+      "F0106"
+    ],
+    "hard_negative_pair": [
+      "R0589",
+      "R1205"
+    ],
+    "oov": [
+      "tokenised card"
+    ],
+    "real": [
+      "R0589",
+      "R0970",
+      "R0909",
+      "R1205",
+      "R0797"
+    ]
+  },
+  "11": {
+    "call_type": "forex_nri",
+    "fictional": [
+      "F0058",
+      "F0127",
+      "F0067",
+      "F0103"
+    ],
+    "hard_negative_pair": null,
+    "oov": [
+      "upi lite"
+    ],
+    "real": [
+      "R0240",
+      "R0422",
+      "R0524",
+      "R0967"
+    ]
+  },
+  "12": {
+    "call_type": "mandate_setup",
+    "fictional": [
+      "F0034",
+      "F0196",
+      "F0081"
+    ],
+    "hard_negative_pair": [
+      "R0393",
+      "R1270"
+    ],
+    "oov": [],
+    "real": [
+      "R0393",
+      "R0246",
+      "R1633",
+      "R1258",
+      "R1270"
+    ]
+  },
+  "13": {
+    "call_type": "kyc_update",
+    "fictional": [
+      "F0188",
+      "F0020",
+      "F0040"
+    ],
+    "hard_negative_pair": null,
+    "oov": [],
+    "real": [
+      "R0735",
+      "R0539",
+      "R0880",
+      "R1019"
+    ]
+  },
+  "14": {
+    "call_type": "upi_dispute",
+    "fictional": [
+      "F0073",
+      "F0188",
+      "F0141",
+      "F0003"
+    ],
+    "hard_negative_pair": null,
+    "oov": [
+      "credit limit increase"
+    ],
+    "real": [
+      "R0015",
+      "R0195",
+      "R0700",
+      "R1241"
+    ]
+  },
+  "15": {
+    "call_type": "card_limit",
+    "fictional": [
+      "F0028",
+      "F0137",
+      "F0157"
+    ],
+    "hard_negative_pair": [
+      "R1574",
+      "R1214"
+    ],
+    "oov": [],
+    "real": [
+      "R0652",
+      "R1574",
+      "R0764",
+      "R0724",
+      "R1214"
+    ]
+  },
+  "16": {
+    "call_type": "collections_settlement",
+    "fictional": [
+      "F0042",
+      "F0107",
+      "F0039"
+    ],
+    "hard_negative_pair": [
+      "R1170",
+      "R1686"
+    ],
+    "oov": [],
+    "real": [
+      "R1234",
+      "R1355",
+      "R0857",
+      "R1170",
+      "R1686"
+    ]
+  },
+  "17": {
+    "call_type": "loan_foreclosure",
+    "fictional": [
+      "F0020",
+      "F0016",
+      "F0176"
+    ],
+    "hard_negative_pair": null,
+    "oov": [],
+    "real": [
+      "R0846",
+      "R0446",
+      "R0824",
+      "R1176",
+      "R0160"
+    ]
+  },
+  "18": {
+    "call_type": "branch_visit",
+    "fictional": [
+      "F0031",
+      "F0121",
+      "F0001"
+    ],
+    "hard_negative_pair": null,
+    "oov": [
+      "auto pay mandate"
+    ],
+    "real": [
+      "R0318",
+      "R1332",
+      "R1148",
+      "R1375",
+      "R0965"
+    ]
+  },
+  "19": {
+    "call_type": "insurance_claim",
+    "fictional": [
+      "F0101",
+      "F0040",
+      "F0104",
+      "F0002"
+    ],
+    "hard_negative_pair": null,
+    "oov": [
+      "upi lite"
+    ],
+    "real": [
+      "R0617",
+      "R0253",
+      "R1426",
+      "R1322",
+      "R0369"
+    ]
+  }
+}
