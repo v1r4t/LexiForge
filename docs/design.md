@@ -40,6 +40,7 @@ Everything else — static, oracle-minimal, sweep, strata — is exploratory, re
 - 4–6 term occurrences per call (~1.0 per utterance). **Density is fixed deliberately**: higher density inflates every context effect. The consequence is a ~20-point MDE, and that is a property of the design, not a defect.
 - 4/20 calls carry one out-of-core term (~5–8% of occurrences, 15–20% of distinct types). 6/20 carry one spoken term absent from the glossary. 10/20 carry a role-confusable hard-negative pair.
 - Reference format `codemix`: Latin product names and acronyms, Devanagari Hindi, digits.
+- **Telephony subset:** 20 files re-encoded to 8 kHz to probe channel sensitivity, reported separately and exploratory. No claim rests on it.
 - Recording: one session per call, one device, pronunciation gate before recording, max 3 retakes, consent, 6-item QC.
 - References: two-pass — blind transcription first, then reconcile against the script with **audio winning**. Verifier blind to condition and to the glossary. ~3.5 min/file.
 
@@ -70,7 +71,7 @@ Everything else — static, oracle-minimal, sweep, strata — is exploratory, re
 
 Unit is the (utterance, term) pair, clustered by call. Design effect 1.25–2.1 at ICC 0.1–0.4, so naive binomial SEs run 1.1–1.45× too small. Inference is **wild cluster bootstrap-t with Rademacher weights, one per call, at G=20**, with conversation-level randomisation as a cross-check. Replicates collapse by arithmetic mean — never majority vote, never best-of-3.
 
-**Replication:** every arm in a pre-registered contrast gets exactly **one** run. Baseline gets three, used only as a determinism diagnostic and **excluded from the contrast**. This avoids the mean-of-3-versus-single-run bias without tripling the job count.
+**Replication:** every arm in a pre-registered contrast gets **three** runs, collapsed by arithmetic mean before pairing. Equal R on both sides is what keeps the paired standard error honest — mean-of-3 against a single run understates it by roughly two-thirds of the run variance. The three baseline runs additionally serve as a determinism diagnostic. At ₹27 per audio hour the extra runs cost ~₹72, so the binding constraint is wall clock, not money.
 
 ## 7. Decision rules
 
@@ -91,7 +92,15 @@ Plus one check the specialists missed: **canonicalisation against real ASR outpu
 
 Four speakers, one accent region, clean audio, fictional brands, scripted and then read aloud. Scripts were written by someone who knows the glossary, which is the one threat the design cannot eliminate — effect sizes should be read as **upper bounds under best-case form predictability**. Term recall is a necessary but not sufficient proxy for deployment value. Only large effects are detectable.
 
-## 9. What is being built
+## 9. Cost, rate limit, and wall clock
+
+Pricing, verified on the Gnani API pricing page: **₹27.00 per audio hour** for STT, REST and Batch alike; **1 credit = ₹1**; **60 requests/minute** for Batch. The account holds 5,000 credits — about 11,100 minutes of audio.
+
+The full matrix is ~260 billed minutes, or 4.3 audio hours, so **~₹117** — 2.3% of the balance. With three replicates on the contrast arms it rises to ~₹190, still under 4%. Cost is therefore not a design constraint. Human hours are. Credits buy replication, which is nearly free of labour; they do not buy recording and reference verification, which scale linearly with corpus size. That asymmetry is why the corpus stays at 100 files and the budget goes into replicates.
+
+The 60 requests/minute figure governs **submission**, not processing. The ~270 job creates fit inside five minutes of that allowance, and polling at 15-second intervals is ~18 requests/minute. What the docs do not state is **how many batch jobs run concurrently server-side**; the smoke test submits five jobs at once and records how many reach `IN_PROGRESS` together. That single number sets the Nov 5–6 schedule — with real parallelism the run is under an hour, and if jobs queue it is bounded by per-job processing time.
+
+## 10. What is being built
 
 Repo: `lexiforge/` (harness, selectors, matcher, scoring), `data/` (glossary, core-200, scripts — committed), `audio/` and `refs/` (gitignored if they contain identifiable voices), `web/` (three-screen demo), `docs/` (this document, pre-registration, notes).
 
