@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+*.db
+*.sqlite3
+
+# Recorded material is not committed unless consent explicitly covers it.
+audio/
+refs/
+transcripts/
+runs/
+
+.DS_Store
+Thumbs.db
