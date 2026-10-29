@@ -2,13 +2,28 @@
 
 A vocabulary-budget risk harness for Gnani Prisma v3.0 on Hinglish banking speech.
 
-**Question:** you get 200 keyterm slots per call and your glossary has 2,000. Which 200 — and what does it cost you when you choose wrong?
+**Question:** you get 200 keyterm slots per call and your glossary has 2,000. A fixed list is stale for most calls — so what does it cost when the list is wrong?
 
-**Claim under test:** a mismatched vocabulary measurably corrupts transcripts compared with a matched one, and a cheap per-call selector recovers most of the matched-vocabulary benefit without that corruption.
+## What this tests
 
-The selector-vs-static comparison is declared inconclusive in advance: at ~70–75 effective term occurrences the minimum detectable effect is ~20 points. Only large effects are tested here.
+Two confirmatory hypotheses, both pre-registered in the negative direction:
+
+- **H1** — an irrelevant list costs recognized words: `mismatched-200 < baseline` on real terms the model already knows (`NEFT`, `UPI`, `KYC`, `IFSC`).
+- **H2** — an irrelevant list invents words: `mismatched-200 > baseline` in glossary-term insertions per utterance.
+
+The benefit of a *relevant* list is a positive control, not a claim. If it does not appear, the pipeline is broken.
+
+## What this does not claim
+
+It does not show that a static list causes harm — that is reported separately. Mismatched-200 is a worst case, a fully irrelevant list, not a typical deployment.
+
+> **Corpus disclosure.** This is a synthetic Hinglish banking-call corpus — four volunteers, scripted and read aloud, fictional brand names, no real customer data. Results are upper-bound measurements on clean read speech with an artificially raised term density, and must not be read as real contact-centre evidence.
+
+## Status
+
+Design approved 2026-10-29. Deadline 2026-11-10.
 
 - Design: [`docs/design.md`](docs/design.md)
 - Notes: [`docs/notes/`](docs/notes/)
 
-Stack: Python 3.11, SQLite, FastAPI, React. Built for the Gnani.ai hackathon, deadline 2026-11-10.
+Stack: Python 3.11, SQLite, FastAPI, React.
