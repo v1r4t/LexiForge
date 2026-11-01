@@ -1,0 +1,4 @@
+* @lexiforge-maintainers
+web/frontend/ @lexiforge-frontend
+lexiforge/analysis/ @lexiforge-stats
+scripts/ @lexiforge-data

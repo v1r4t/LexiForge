@@ -121,6 +121,7 @@ def info() -> None:
     table.add_row("Observability", "partial", "logging + metrics; tracing is local-only")
     table.add_row("Web dashboard", "ready", "API + React build (see README)")
     table.add_row("Plugin registry", "ready", "ASR backend swap point")
+    table.add_row("Inference", "ready", "sign-flip, Holm, wild bootstrap-t, MDE")
 
     console.print(table)
     console.print("\nFor Gnani Prisma v3.0 on Hinglish banking speech")

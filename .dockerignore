@@ -1,33 +1,27 @@
-# Python
-__pycache__/
-*.py[cod]
-.venv/
-venv/
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-htmlcov/
+.git
+.venv
+venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
 .coverage
-*.egg-info/
-
-# Node
-web/frontend/node_modules/
-web/frontend/dist/
-web/frontend/.vite/
-
-# Recorded / private material
-audio/
-refs/
-transcripts/
-runs/
+htmlcov
+dist
+build
+*.egg-info
+node_modules
+web/frontend/node_modules
+web/frontend/dist
+audio
+refs
+transcripts
+runs
 *.db
 *.sqlite3
 .env
-
-# VCS and editor noise
-.git/
-.gitignore
-.vscode/
-.idea/
-.DS_Store
 Thumbs.db
+.DS_Store
+web/data/*.json
+!web/data/sample/*.json

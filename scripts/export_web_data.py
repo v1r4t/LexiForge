@@ -154,11 +154,17 @@ def _tokens(reference: str, hypothesis: str, glossary) -> List[Dict[str, str]]:
 def _missed_terms(reference: str, hypothesis: str, glossary) -> List[str]:
     """Reference term surfaces absent from the hypothesis."""
     hyp_ids = {span["term_id"] for span in find_spans(hypothesis, glossary)}
-    return [
-        span["surface"]
-        for span in find_spans(reference, glossary)
-        if span["term_id"] not in hyp_ids
-    ]
+    seen: set = set()
+    missed: List[str] = []
+    for span in find_spans(reference, glossary):
+        if span["term_id"] in hyp_ids:
+            continue
+        surface = span["surface"]
+        if surface in seen:
+            continue
+        seen.add(surface)
+        missed.append(surface)
+    return missed
 
 
 def _calls_metadata(assignment_path: Path) -> Dict[str, Dict[str, Any]]:
