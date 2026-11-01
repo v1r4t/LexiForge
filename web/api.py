@@ -161,6 +161,7 @@ def meta() -> Dict[str, Any]:
         "conditions": _conditions(),
         "call_count": len(_CALLS),
         "audio": [call.get("call_id") for call in _CALLS if _audio_file(str(call.get("call_id")))],
+        "data_dir": str(_DATA_DIR),
     }
 
 
