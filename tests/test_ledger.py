@@ -36,6 +36,26 @@ class TestLedger(unittest.TestCase):
         self.assertNotEqual(first, second)
         self.assertEqual(self.ledger.count_jobs(), 2)
 
+    def test_caller_supplied_client_job_id_is_honoured(self):
+        """The write-ahead id the runner persisted must be the id that is stored."""
+        cid = self.ledger.reserve_job(
+            "baseline", "c01", 0, "h", "{}", client_job_id="write-ahead-abc"
+        )
+        self.assertEqual(cid, "write-ahead-abc")
+        self.assertEqual(self.ledger.get_job("baseline", "c01", 0)["client_job_id"], "write-ahead-abc")
+
+    def test_create_job_honours_client_job_id(self):
+        self.ledger.create_job(
+            condition="baseline", conversation="c02", replicate=0,
+            client_job_id="runner-id-1",
+        )
+        job = self.ledger.get_job("baseline", "c02", 0)
+        self.assertEqual(job["client_job_id"], "runner-id-1")
+
+    def test_reserve_without_id_keeps_generated_pattern(self):
+        cid = self.ledger.reserve_job("baseline", "c03", 2, "h", "{}")
+        self.assertEqual(cid, "baseline__c03__r2")
+
     def test_coverage_counts_correct_after_partial_recording(self):
         cid = self.ledger.reserve_job("mismatched-200", "c01", 0, "h", "{}")
         for i in range(4):

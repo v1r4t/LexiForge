@@ -6,10 +6,16 @@ dependency injection for testability.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
+
+from lexiforge.observability import get_logger, get_metrics, trace
+
+logger = get_logger(__name__)
+metrics = get_metrics()
 
 
 class JobState(str, Enum):
@@ -39,6 +45,7 @@ class Runner:
         if self.batch_client is None and "batch" in kwargs:
             self.batch_client = kwargs["batch"]
 
+    @trace("run_condition")
     def run_condition(
         self,
         condition: str,
@@ -48,6 +55,12 @@ class Runner:
         replicate: int = 0,
         config: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
+        logger.info(
+            "condition run start",
+            condition=condition,
+            conversations=len(conversations),
+        )
+        metrics.increment("runs_started", tags={"condition": condition})
         if config is None:
             config = {}
 
@@ -103,6 +116,34 @@ class Runner:
                 summary["downloaded"] += job_result.get("downloaded", 0)
                 summary["missing"] += job_result.get("missing", 0)
             return summary
+
+    async def run_conditions_async(
+        self,
+        runs: List[Dict[str, Any]],
+        max_concurrent: int = 4,
+    ) -> Dict[str, Dict[str, Any]]:
+        """Run several ``run_condition`` calls with bounded concurrency.
+
+        The submission matrix is ~287 jobs over an hour of audio; running one
+        condition at a time wastes that. Each run is dispatched to a worker
+        thread against the existing synchronous state machine, so the ledger
+        guarantees (one row per ``(condition, conversation, replicate)``, no
+        re-POST on resume) are unchanged.
+
+        ``runs`` are kwargs mappings for :meth:`run_condition`. Returns
+        ``{condition: summary}``.
+        """
+        if max_concurrent < 1:
+            raise ValueError("max_concurrent must be >= 1")
+        semaphore = asyncio.Semaphore(max_concurrent)
+
+        async def _one(kwargs: Dict[str, Any]) -> tuple[str, Dict[str, Any]]:
+            async with semaphore:
+                summary = await asyncio.to_thread(self.run_condition, **kwargs)
+                return str(kwargs.get("condition", "")), summary
+
+        results = await asyncio.gather(*(_one(dict(run)) for run in runs))
+        return dict(results)
 
     def _run_job(
         self,
@@ -299,11 +340,11 @@ class Runner:
             if not job_id:
                 continue
 
-            # Never re-POSTs an existing remote job
-            # Poll existing job
+            # Never re-POSTs an existing remote job.
+            # Poll first: a non-transient failure aborts this job cleanly.
             if self.batch_client is not None:
                 try:
-                    job_status = self.batch_client.get_job_status(job_id)
+                    self.batch_client.get_job_status(job_id)
                 except Exception:
                     continue
 

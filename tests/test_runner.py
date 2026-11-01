@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-import json
-import os
 import tempfile
 import unittest
 from pathlib import Path
 
-from lexiforge.runner import Runner, JobState
+from lexiforge.runner import JobState, Runner
 
 
 class FakeBatchClient:
@@ -227,7 +225,7 @@ class TestRunner(unittest.TestCase):
         context_by_call = {"c03": []}
 
         # First run
-        result1 = runner.run_condition(
+        runner.run_condition(
             condition="baseline",
             conversations=["c03"],
             files_by_call=files_by_call,

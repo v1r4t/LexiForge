@@ -15,6 +15,10 @@ from typing import Any, Dict, List, Optional, Union
 
 TERMINAL_STATES = ("VERIFIED", "FAILED_TERMINAL")
 
+# Bump when _SCHEMA changes; init() records this in PRAGMA user_version so an
+# old database is detected instead of silently missing a column.
+SCHEMA_VERSION = 1
+
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS conditions (
     name TEXT PRIMARY KEY,
@@ -103,8 +107,34 @@ class Ledger:
         except sqlite3.Error:
             pass  # e.g. :memory: databases cannot use WAL
         self._conn.executescript(_SCHEMA)
+        try:
+            self._record_schema_version()
+        except RuntimeError:
+            # Do not leak the handle when refusing a database.
+            self._conn.close()
+            raise
         self._conn.commit()
         return self
+
+    def schema_version(self) -> int:
+        row = self._conn.execute("PRAGMA user_version").fetchone()
+        return int(row[0]) if row else 0
+
+    def _record_schema_version(self) -> None:
+        """Stamp the schema version, refusing to open a newer database.
+
+        Every statement in ``_SCHEMA`` is ``CREATE TABLE IF NOT EXISTS``, so an
+        older file silently keeps its old columns. Stamping and checking the
+        version turns that into a clear error instead of a confusing one.
+        """
+        existing = self.schema_version()
+        if existing > SCHEMA_VERSION:
+            raise RuntimeError(
+                f"ledger schema {existing} is newer than this build ({SCHEMA_VERSION}); "
+                "upgrade lexiforge or use a different database"
+            )
+        if existing != SCHEMA_VERSION:
+            self._conn.execute(f"PRAGMA user_version = {int(SCHEMA_VERSION)}")
 
     def close(self) -> None:
         try:
@@ -120,11 +150,14 @@ class Ledger:
         replicate: int = 0,
         context_hash: Optional[str] = None,
         config_json: Optional[Union[str, Dict[str, Any]]] = None,
+        client_job_id: Optional[str] = None,
     ) -> str:
         """Persist a write-ahead client_job_id BEFORE the remote POST.
 
         Idempotent: reserving the same (condition, conversation, replicate)
-        twice returns the existing row's id without creating a duplicate.
+        twice returns the existing row's id without creating a duplicate. A
+        caller-supplied ``client_job_id`` is honoured, so the id the runner
+        persisted is the id the remote POST is reconciled against.
         """
         if isinstance(config_json, dict):
             config_json = json.dumps(config_json, sort_keys=True)
@@ -140,14 +173,14 @@ class Ledger:
                 " VALUES (?, ?, ?, ?, ?)",
                 (context_hash, condition, conversation, config_json, now),
             )
-        client_job_id = f"{condition}__{conversation}__r{int(replicate)}"
+        write_ahead_id = client_job_id or f"{condition}__{conversation}__r{int(replicate)}"
         self._conn.execute(
             "INSERT OR IGNORE INTO jobs"
             " (client_job_id, condition, conversation, replicate,"
             "  context_hash, config_json, status, created_at, updated_at)"
             " VALUES (?, ?, ?, ?, ?, ?, 'DRAFT', ?, ?)",
             (
-                client_job_id,
+                write_ahead_id,
                 condition,
                 conversation,
                 int(replicate),
@@ -327,9 +360,9 @@ class Ledger:
     def create_job(self, condition=None, conversation=None, replicate=0,
                    client_job_id=None, state=None, **kwargs) -> Dict[str, Any]:
         conversation = kwargs.pop("conv_key", conversation)
-        cid = client_job_id or f"{condition}__{conversation}__r{int(replicate)}"
         self.reserve_job(condition, conversation, replicate,
-                         kwargs.get("context_hash"), kwargs.get("config_json"))
+                         kwargs.get("context_hash"), kwargs.get("config_json"),
+                         client_job_id=client_job_id)
         if state is not None:
             row = self._conn.execute(
                 "SELECT client_job_id FROM jobs WHERE condition=? AND conversation=?"
