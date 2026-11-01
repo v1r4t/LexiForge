@@ -227,5 +227,33 @@ def export_web(
         console.print(f"[green]OK[/green] wrote {path}")
 
 
+@app.command("check-web-data")
+def check_web_data(
+    data_dir: Path = typer.Argument(Path("web/data"), help="Dashboard data directory to validate"),
+) -> None:
+    """Sanity-check exported web dashboard data."""
+    import importlib.util
+
+    script = Path(__file__).resolve().parents[1] / "scripts" / "check_web_data.py"
+    if not script.exists():
+        console.print(f"[red]FAIL[/red] checker not found at {script}")
+        raise typer.Exit(code=1)
+
+    spec = importlib.util.spec_from_file_location("check_web_data", script)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)  # type: ignore[union-attr]
+
+    try:
+        rc = module.check(data_dir)
+    except Exception as exc:  # noqa: BLE001 - CLI boundary
+        console.print(f"[red]FAIL[/red] {type(exc).__name__}: {exc}")
+        raise typer.Exit(code=1)
+
+    if rc != 0:
+        raise typer.Exit(code=rc)
+    console.print(f"[green]OK[/green] {data_dir} looks consistent")
+
+
 if __name__ == "__main__":
     app()
