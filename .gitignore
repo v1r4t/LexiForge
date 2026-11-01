@@ -5,6 +5,9 @@ venv/
 .env
 *.db
 *.sqlite3
+build/
+dist/
+*.egg-info/
 
 # Recorded material is not committed unless consent explicitly covers it.
 audio/
@@ -14,3 +17,9 @@ runs/
 
 .DS_Store
 Thumbs.db
+
+# Measured dashboard exports are derived from consent-bound transcripts:
+# commit only the hand-written sample under web/data/sample/.
+web/data/*.json
+web/frontend/node_modules/
+web/frontend/dist/

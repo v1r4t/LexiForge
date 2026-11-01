@@ -3,7 +3,6 @@
 import random
 import time
 import unittest
-from unittest.mock import Mock
 
 from lexiforge.api.retry import RateLimiter, RetryExhausted, backoff, with_retries
 

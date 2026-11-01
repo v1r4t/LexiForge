@@ -5,7 +5,7 @@ import unittest
 
 import httpx
 
-from lexiforge.api.client import BatchApiError, BatchClient, TERMINAL_STATUSES
+from lexiforge.api.client import TERMINAL_STATUSES, BatchApiError, BatchClient
 
 
 def make_client(handler, **kwargs):

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 import random
-from typing import Any, Dict, Iterable, List, Mapping, Sequence, Set, Union
+from typing import Any, Dict, Iterable, List, Mapping, Set, Union
 
 from lexiforge.canon import canon
 
@@ -225,7 +225,7 @@ def build_mismatched(
         candidates = filtered_candidates
         # Check for poisoned case
         if not candidates and expected_set:
-            raise AssertionError(f"Zero overlap assertion failed")
+            raise AssertionError("Zero overlap assertion failed")
     
     # Check if poisoned case - all possible candidates from other domains are in expected
     if expected_set:
@@ -245,10 +245,10 @@ def build_mismatched(
                     all_overlap = False
                     break
             if all_overlap:
-                raise AssertionError(f"Zero overlap assertion failed")
+                raise AssertionError("Zero overlap assertion failed")
         # Also check if after filtering candidates are empty and expected exist
         if not candidates:
-            raise AssertionError(f"Zero overlap assertion failed")
+            raise AssertionError("Zero overlap assertion failed")
     
     # Deterministic resampling
     for attempt in range(50):
@@ -286,12 +286,12 @@ def build_mismatched(
             # If we don't have enough terms, still return what we have but must assert zero overlap
             result_canon_check = seen_canon.intersection(expected_set)
             if result_canon_check:
-                raise AssertionError(f"Zero overlap assertion failed")
+                raise AssertionError("Zero overlap assertion failed")
             result = drawn[:budget] if len(drawn) >= budget else drawn
             # Final assertion - must have zero overlap
             result_canon_final = {canon(x) for x in result}
             if result_canon_final.intersection(expected_set):
-                raise AssertionError(f"Zero overlap assertion failed")
+                raise AssertionError("Zero overlap assertion failed")
             # If we have no valid terms to draw (all candidates are in expected or excluded)
             if len(result) == 0 and expected_set:
                 if candidates:
@@ -302,10 +302,10 @@ def build_mismatched(
                             all_cand_overlap = False
                             break
                     if all_cand_overlap:
-                        raise AssertionError(f"Zero overlap assertion failed")
+                        raise AssertionError("Zero overlap assertion failed")
                 else:
                     # Check if there were candidates from other domains that all overlapped
-                    raise AssertionError(f"Zero overlap assertion failed")
+                    raise AssertionError("Zero overlap assertion failed")
             return result
     
     raise AssertionError("Failed to build mismatched context with zero overlap")

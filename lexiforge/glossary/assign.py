@@ -71,7 +71,6 @@ def assign_terms(
         else:
             for k, v in glossary.items():
                 if isinstance(v, Mapping):
-                    term_type = str(v.get("type") or v.get("kind") or "").lower()
                     is_fict = _is_fictional_entry(v)
                     tid = v.get("id") or k
                     if is_fict:
@@ -83,7 +82,6 @@ def assign_terms(
     elif isinstance(glossary, (list, set, tuple)):
         for item in glossary:
             if isinstance(item, Mapping):
-                term_type = str(item.get("type") or item.get("kind") or "").lower()
                 is_fict = _is_fictional_entry(item)
                 tid = item.get("id") or item.get("term_id") or item.get("term") or item.get("canonical")
                 if is_fict:
@@ -94,7 +92,6 @@ def assign_terms(
                 tid = item[0]
                 data = item[1]
                 if isinstance(data, Mapping):
-                    term_type = str(data.get("type") or "").lower()
                     is_fict = _is_fictional_entry(data)
                 else:
                     is_fict = False

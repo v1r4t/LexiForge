@@ -28,7 +28,9 @@ class TestDeterminism(unittest.TestCase):
     def test_same_seed_byte_identical(self):
         first, second = _small(), _small()
         self.assertEqual(first, second)
-        dump = lambda e: json.dumps(e, ensure_ascii=False, indent=2, sort_keys=True)
+        def dump(entry):
+            return json.dumps(entry, ensure_ascii=False, indent=2, sort_keys=True)
+
         self.assertEqual(dump(first), dump(second))
 
     def test_write_glossary_stable_bytes(self):

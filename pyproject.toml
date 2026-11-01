@@ -11,16 +11,58 @@ dependencies = [
     "httpx>=0.27",
     "pydantic>=2.6",
     "typer>=0.12",
+    "rich>=13.0",
     "rapidfuzz>=3.6",
     "numpy>=1.26",
     "scipy>=1.11",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0"]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=4.0",
+    "pytest-asyncio>=0.21",
+    "pytest-mock>=3.0",
+    "hypothesis>=6.0",
+    "black>=23.0",
+    "ruff>=0.1",
+    "mypy>=1.0",
+    "pre-commit>=3.0",
+]
 
 [project.scripts]
 lexiforge = "lexiforge.cli:app"
 
 [tool.setuptools.packages.find]
 include = ["lexiforge*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+
+[tool.black]
+line-length = 100
+target-version = ['py310']
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+# Gate on correctness rules only. The wider modernization sets (UP, SIM, BLE,
+# S) are deliberately not enabled: they would rewrite long-standing code this
+# project does not otherwise touch.
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["lexiforge"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+

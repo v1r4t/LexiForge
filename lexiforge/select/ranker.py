@@ -23,7 +23,6 @@ Leakage guard: TypeError if any input dict contains a "reference" key.
 from __future__ import annotations
 
 import math
-import re
 from collections import Counter
 
 try:
@@ -38,13 +37,16 @@ except ImportError:  # pragma: no cover - repo always provides lexiforge.canon
 
 
 try:
-    from lexiforge.select.phonetic import (  # type: ignore[import]
-        is_hard_negative_pair as _ext_is_hard_negative_pair,
-        skeleton as _ext_skeleton,
-        skeleton_similarity as _ext_skeleton_similarity,
-    )
-except ImportError:
+    from lexiforge.select import phonetic as _phonetic
+except ImportError:  # pragma: no cover - phonetic is part of this package
+    _phonetic = None
+
+if _phonetic is None:
     _ext_skeleton = _ext_skeleton_similarity = _ext_is_hard_negative_pair = None
+else:
+    _ext_skeleton = _phonetic.skeleton
+    _ext_skeleton_similarity = _phonetic.skeleton_similarity
+    _ext_is_hard_negative_pair = _phonetic.is_hard_negative_pair
 
 
 # --------------------------------------------------------------------------

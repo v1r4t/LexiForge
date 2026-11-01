@@ -2,13 +2,13 @@
 
 import unittest
 
+from lexiforge.canon import canon
 from lexiforge.contexts.mismatch import (
     assign_mismatch_domain,
-    build_mismatched,
     build_dilution,
+    build_mismatched,
     phonetic_neighbour_overlap,
 )
-from lexiforge.canon import canon
 
 
 class TestMismatchDeterminism(unittest.TestCase):

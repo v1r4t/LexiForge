@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import sys
-from typing import Iterable, Mapping, Any, Sequence
+from typing import Any, Iterable, Mapping
 
 from lexiforge.canon import canon
-
 
 VALID_SOURCES = {"S1", "S2", "S3"}
 VALID_ENUMS = {"real", "fictional", "generated"}

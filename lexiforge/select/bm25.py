@@ -169,7 +169,6 @@ def selector_recall_decomposition(
     glossary_set = set(str(g) for g in glossary_ids)
     candidate_set = set(str(c) for c in candidate_ids)
     selected_set = set(str(s) for s in selected)
-    selected_list = list(str(s) for s in selected)
 
     # identify errors by term id
     error_term_ids = []

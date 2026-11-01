@@ -172,7 +172,9 @@ class TestPairTerms(unittest.TestCase):
             [(0, 2, "A"), (1, 3, "B"), (2, 3, "C")],
             align(tokens, list(tokens)),
         )
-        key = lambda d: (d["start"], d["end"], d["term_id"])
+        def key(d):
+            return (d["start"], d["end"], d["term_id"])
+
         hit_keys = {key(d) for d in paired["hits"]}
         ins_keys = {key(d) for d in paired["insertions"]}
         self.assertEqual(hit_keys & ins_keys, set())

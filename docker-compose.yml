@@ -1,0 +1,27 @@
+services:
+  lexiforge-api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      # precomputed = never call the ASR API from the dashboard container
+      DEMO_MODE: ${DEMO_MODE:-precomputed}
+      LEXIFORGE_WEB_DATA: ${LEXIFORGE_WEB_DATA:-}
+      GNANI_API_KEY: ${GNANI_API_KEY:-}
+      GNANI_BASE_URL: ${GNANI_BASE_URL:-https://api.vachana.ai}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  lexiforge-cli:
+    build: .
+    environment:
+      GNANI_API_KEY: ${GNANI_API_KEY:-}
+      GNANI_BASE_URL: ${GNANI_BASE_URL:-https://api.vachana.ai}
+    entrypoint: ["lexiforge"]
+    command: ["--help"]
+    profiles:
+      - cli

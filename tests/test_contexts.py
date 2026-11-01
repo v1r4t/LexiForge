@@ -7,7 +7,6 @@ import itertools
 import pytest
 
 from lexiforge.contexts.build import (
-    MAX_KEYTERMS,
     TOPIC_MAX,
     TOPIC_MIN,
     ContextBudgetError,

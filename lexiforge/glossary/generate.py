@@ -287,8 +287,6 @@ def generate(seed, n_fictional: int = 200, n_real: int = 1800,
             "at Levenshtein >= 3; extend SECOND_ELEMENTS"
         )
 
-    fict_canonicals = [e["canonical"].casefold() for e in fictional]
-
     real_names: list[str] = []
     if len(ordered_real) >= n_real:
         shuffled = ordered_real[:]
