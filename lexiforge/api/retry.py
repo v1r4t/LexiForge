@@ -31,8 +31,8 @@ class RateLimiter:
                 now = self.clock()
                 elapsed = now - self._last_refill
                 if elapsed >= 60.0:
-                    # Refill tokens
-                    periods = elapsed // 60.0
+                    # Refill the whole bucket; tokens do not accumulate across
+                    # idle periods, so elapsed//60 is intentionally discarded.
                     self._tokens = self.max_per_minute
                     self._last_refill = now
                 if self._tokens > 0:
