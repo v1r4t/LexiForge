@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
-import { BarChart3 } from 'lucide-react';
+import { BarChart3, Info } from 'lucide-react';
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { describeError, getResults } from '../lib/api';
 import type { Results } from '../types';
 import EmptyState from '../components/EmptyState';
+import ResultsSummary from '../components/ResultsSummary';
 
 function format(value: number | undefined, digits = 3): string {
   return typeof value === 'number' ? value.toFixed(digits) : '—';
@@ -55,12 +57,48 @@ export default function ResultsPage() {
         </div>
       )}
 
+      {results && <ResultsSummary results={results} />}
+
       {contrasts.length === 0 ? (
         <EmptyState
           title="No contrasts in this dataset"
           detail="Run lexiforge export-web after scoring; the exporter computes descriptive paired differences from scored recalls."
         />
       ) : (
+        <>
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden mb-6">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900">Paired differences</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                {results?.is_sample
+                  ? 'Placeholder deltas for dashboard layout'
+                  : 'Descriptive differences from the exported dataset'}
+              </p>
+            </div>
+            <div className="px-6 py-4 h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={contrasts.map((c) => ({
+                    name: c.name.length > 32 ? `${c.name.slice(0, 29)}…` : c.name,
+                    fullName: c.name,
+                    delta_pp: c.delta_pp,
+                    kind: c.kind,
+                  }))}
+                  margin={{ top: 5, right: 30, left: 20, bottom: 60 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="name" angle={-35} textAnchor="end" height={80} tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} label={{ value: 'Δ (pp)', angle: -90, position: 'insideLeft' }} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                    formatter={(value: number) => [`${value > 0 ? '+' : ''}${value.toFixed(3)} pp`, 'Δ']}
+                    labelFormatter={(_, payload) => payload?.[0]?.payload?.fullName || ''}
+                  />
+                  <Bar dataKey="delta_pp" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-gray-900">Contrasts</h2>
@@ -137,11 +175,12 @@ export default function ResultsPage() {
             </table>
           </div>
         </div>
+        </>
       )}
 
       <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
         <div className="flex items-start space-x-3">
-          <BarChart3 className="w-5 h-5 text-blue-600 mt-0.5" />
+          <Info className="w-5 h-5 text-blue-600 mt-0.5" />
           <div>
             <h3 className="text-sm font-medium text-blue-900">How to read this</h3>
             <p className="text-sm text-blue-700 mt-1">
@@ -149,6 +188,7 @@ export default function ResultsPage() {
               conversations, with a wild cluster bootstrap-t as a cross-check and
               Holm correction over the confirmatory family (H1, H2). The dashboard
               renders what the export supplies and never computes p-values itself.
+              Values are shown with units as exported (pp or per utterance).
             </p>
           </div>
         </div>
