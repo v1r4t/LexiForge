@@ -1,0 +1,130 @@
+{
+  "c01": {
+    "baseline": [
+      {"text": "Mera", "status": "same"},
+      {"text": "UPI", "status": "missed"},
+      {"text": "transaction", "status": "same"},
+      {"text": "fail", "status": "same"},
+      {"text": "ho", "status": "same"},
+      {"text": "gaya", "status": "same"}
+    ],
+    "mismatched": [
+      {"text": "Mera", "status": "same"},
+      {"text": "UPI", "status": "missed"},
+      {"text": "insurance", "status": "inserted"},
+      {"text": "transaction", "status": "same"},
+      {"text": "fail", "status": "same"},
+      {"text": "ho", "status": "same"},
+      {"text": "gaya", "status": "same"}
+    ],
+    "adaptive": [
+      {"text": "Mera", "status": "same"},
+      {"text": "UPI", "status": "recovered"},
+      {"text": "transaction", "status": "same"},
+      {"text": "fail", "status": "same"},
+      {"text": "ho", "status": "same"},
+      {"text": "gaya", "status": "same"}
+    ],
+    "oracle": [
+      {"text": "Mera", "status": "same"},
+      {"text": "UPI", "status": "recovered"},
+      {"text": "transaction", "status": "same"},
+      {"text": "fail", "status": "same"},
+      {"text": "ho", "status": "same"},
+      {"text": "gaya", "status": "same"}
+    ]
+  },
+  "c02": {
+    "baseline": [
+      {"text": "Mujhe", "status": "same"},
+      {"text": "KYC", "status": "missed"},
+      {"text": "verify", "status": "same"},
+      {"text": "karwana", "status": "same"},
+      {"text": "hai", "status": "same"}
+    ],
+    "mismatched": [
+      {"text": "Mujhe", "status": "same"},
+      {"text": "KYC", "status": "missed"},
+      {"text": "policy", "status": "inserted"},
+      {"text": "verify", "status": "same"},
+      {"text": "karwana", "status": "same"},
+      {"text": "hai", "status": "same"}
+    ],
+    "adaptive": [
+      {"text": "Mujhe", "status": "same"},
+      {"text": "KYC", "status": "recovered"},
+      {"text": "verify", "status": "same"},
+      {"text": "karwana", "status": "same"},
+      {"text": "hai", "status": "same"}
+    ],
+    "oracle": [
+      {"text": "Mujhe", "status": "same"},
+      {"text": "KYC", "status": "recovered"},
+      {"text": "verify", "status": "same"},
+      {"text": "karwana", "status": "same"},
+      {"text": "hai", "status": "same"}
+    ]
+  },
+  "c03": {
+    "baseline": [
+      {"text": "Mera", "status": "same"},
+      {"text": "card", "status": "same"},
+      {"text": "block", "status": "same"},
+      {"text": "kar", "status": "same"},
+      {"text": "do", "status": "same"}
+    ],
+    "mismatched": [
+      {"text": "Mera", "status": "same"},
+      {"text": "card", "status": "same"},
+      {"text": "block", "status": "same"},
+      {"text": "premium", "status": "inserted"},
+      {"text": "kar", "status": "same"},
+      {"text": "do", "status": "same"}
+    ],
+    "adaptive": [
+      {"text": "Mera", "status": "same"},
+      {"text": "card", "status": "same"},
+      {"text": "block", "status": "same"},
+      {"text": "kar", "status": "same"},
+      {"text": "do", "status": "same"}
+    ],
+    "oracle": [
+      {"text": "Mera", "status": "same"},
+      {"text": "card", "status": "same"},
+      {"text": "block", "status": "same"},
+      {"text": "kar", "status": "same"},
+      {"text": "do", "status": "same"}
+    ]
+  },
+  "c04": {
+    "baseline": [
+      {"text": "Mera", "status": "same"},
+      {"text": "mandate", "status": "missed"},
+      {"text": "fail", "status": "same"},
+      {"text": "ho", "status": "same"},
+      {"text": "gaya", "status": "same"}
+    ],
+    "mismatched": [
+      {"text": "Mera", "status": "same"},
+      {"text": "mandate", "status": "missed"},
+      {"text": "loan", "status": "inserted"},
+      {"text": "fail", "status": "same"},
+      {"text": "ho", "status": "same"},
+      {"text": "gaya", "status": "same"}
+    ],
+    "adaptive": [
+      {"text": "Mera", "status": "same"},
+      {"text": "mandate", "status": "recovered"},
+      {"text": "fail", "status": "same"},
+      {"text": "ho", "status": "same"},
+      {"text": "gaya", "status": "same"}
+    ],
+    "oracle": [
+      {"text": "Mera", "status": "same"},
+      {"text": "mandate", "status": "recovered"},
+      {"text": "fail", "status": "same"},
+      {"text": "ho", "status": "same"},
+      {"text": "gaya", "status": "same"}
+    ]
+  }
+}

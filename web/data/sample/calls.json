@@ -1,0 +1,26 @@
+[
+  {
+    "call_id": "c01",
+    "call_type": "upi_failed",
+    "duration_s": 18.5,
+    "has_audio": true
+  },
+  {
+    "call_id": "c02",
+    "call_type": "kyc_reverify",
+    "duration_s": 22.3,
+    "has_audio": true
+  },
+  {
+    "call_id": "c03",
+    "call_type": "card_block",
+    "duration_s": 16.8,
+    "has_audio": true
+  },
+  {
+    "call_id": "c04",
+    "call_type": "mandate_fail",
+    "duration_s": 20.1,
+    "has_audio": true
+  }
+]

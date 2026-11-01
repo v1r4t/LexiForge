@@ -1,0 +1,39 @@
+{
+  "c01": {
+    "selected": [
+      {"term": "UPI", "source": "lex"},
+      {"term": "NEFT", "source": "lex"},
+      {"term": "transaction", "source": "phon"},
+      {"term": "failed", "source": "lex"},
+      {"term": "bank", "source": "lex"}
+    ],
+    "left_out": ["IFSC", "KYC", "IMPS"]
+  },
+  "c02": {
+    "selected": [
+      {"term": "KYC", "source": "lex"},
+      {"term": "Aadhaar", "source": "lex"},
+      {"term": "PAN", "source": "lex"},
+      {"term": "verify", "source": "phon"}
+    ],
+    "left_out": ["UPI", "NEFT", "IFSC"]
+  },
+  "c03": {
+    "selected": [
+      {"term": "card", "source": "lex"},
+      {"term": "block", "source": "lex"},
+      {"term": "fraud", "source": "lex"},
+      {"term": "transaction", "source": "phon"}
+    ],
+    "left_out": ["UPI", "KYC", "NEFT"]
+  },
+  "c04": {
+    "selected": [
+      {"term": "mandate", "source": "lex"},
+      {"term": "debit", "source": "lex"},
+      {"term": "account", "source": "lex"},
+      {"term": "EMI", "source": "lex"}
+    ],
+    "left_out": ["UPI", "card", "fraud"]
+  }
+}

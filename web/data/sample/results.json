@@ -1,0 +1,42 @@
+{
+  "source": "illustrative_sample",
+  "is_sample": true,
+  "note": "Numbers below are hand-written to exercise the dashboard. They are not measured results.",
+  "contrasts": [
+    {
+      "name": "H1: mismatched-200 vs baseline (real-term recall)",
+      "kind": "h1",
+      "unit": "pp",
+      "delta_pp": -12.5,
+      "ci_low": -18.3,
+      "ci_high": -6.7,
+      "p_holm": 0.012,
+      "verdict": "sample"
+    },
+    {
+      "name": "H2: mismatched-200 vs baseline (insertions/utterance)",
+      "kind": "h2",
+      "unit": "per_utterance",
+      "delta_pp": 0.15,
+      "ci_low": 0.08,
+      "ci_high": 0.22,
+      "p_holm": 0.008,
+      "verdict": "sample"
+    },
+    {
+      "name": "Control: oracle-200 vs mismatched-200",
+      "kind": "control",
+      "unit": "pp",
+      "delta_pp": 18.7,
+      "ci_low": 12.4,
+      "ci_high": 25.0,
+      "p_holm": 0.001,
+      "verdict": "sample"
+    }
+  ],
+  "control": {
+    "baseline_recall": 0.92,
+    "mismatched_recall": 0.795,
+    "oracle_recall": 0.962
+  }
+}
