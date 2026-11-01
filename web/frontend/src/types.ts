@@ -36,8 +36,20 @@ export interface Contrast {
   ci_low?: number;
   ci_high?: number;
   p_holm?: number;
+  p_value?: number;
+  p?: number;
   n_calls?: number;
   verdict: string;
+  [key: string]: any;
+}
+
+export interface InferenceMeta {
+  method?: string;
+  seed?: number;
+  n_permutations?: number;
+  adjusted_p_values?: Record<string, number>;
+  rejected?: Record<string, boolean>;
+  [key: string]: any;
 }
 
 export interface Results {
@@ -46,6 +58,8 @@ export interface Results {
   contrasts: Contrast[];
   control: Record<string, number>;
   note?: string;
+  inference?: InferenceMeta;
+  [key: string]: any;
 }
 
 export interface Meta {

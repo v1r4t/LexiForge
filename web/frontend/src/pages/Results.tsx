@@ -57,6 +57,13 @@ export default function ResultsPage() {
         </div>
       )}
 
+      {results?.inference && (
+        <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-900">
+          <span className="font-semibold">Inference:</span> {results.inference.method || 'inference from lexiforge.analysis.inference'}
+          {typeof results.inference.n_permutations === 'number' ? ` (n_perm=${results.inference.n_permutations})` : ''}
+        </div>
+      )}
+
       {results && <ResultsSummary results={results} />}
 
       {contrasts.length === 0 ? (
