@@ -56,4 +56,5 @@ export interface Meta {
   conditions: string[];
   call_count: number;
   audio?: string[];
+  data_dir?: string;
 }
