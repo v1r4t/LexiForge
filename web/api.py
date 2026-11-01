@@ -43,11 +43,23 @@ else:
 def _resolve_data_dir() -> Path:
     override = os.environ.get("LEXIFORGE_WEB_DATA")
     if override:
-        return Path(override)
+        p = Path(override)
+        if not p.exists():
+            raise FileNotFoundError(
+                f"LEXIFORGE_WEB_DATA points to missing directory: {p}. "
+                "Create it or run `lexiforge export-web` to populate web/data/."
+            )
+        return p
     measured = _WEB_DIR / "data"
     if (measured / "calls.json").exists():
         return measured
-    return measured / "sample"
+    sample = measured / "sample"
+    if not sample.exists():
+        raise FileNotFoundError(
+            f"No web data found. Expected {measured / 'calls.json'} (measured) or {sample} (sample). "
+            "Run `lexiforge export-web` to generate measured data, or ensure the sample set exists."
+        )
+    return sample
 
 
 _DATA_DIR = _resolve_data_dir()
