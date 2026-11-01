@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BarChart3, Info } from 'lucide-react';
+import { Info } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { describeError, getResults } from '../lib/api';
 import type { Results } from '../types';
@@ -98,8 +98,11 @@ export default function ResultsPage() {
                   <YAxis tick={{ fontSize: 11 }} label={{ value: 'Δ (pp)', angle: -90, position: 'insideLeft' }} />
                   <Tooltip
                     contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-                    formatter={(value: number) => [`${value > 0 ? '+' : ''}${value.toFixed(3)} pp`, 'Δ']}
-                    labelFormatter={(_, payload) => payload?.[0]?.payload?.fullName || ''}
+                    formatter={(value: any) => [
+                      typeof value === 'number' ? `${value > 0 ? '+' : ''}${value.toFixed(3)} pp` : '—',
+                      'Δ',
+                    ]}
+                    labelFormatter={(_, payload: any) => payload?.[0]?.payload?.fullName || ''}
                   />
                   <Bar dataKey="delta_pp" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                 </BarChart>
