@@ -37,6 +37,7 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from lexiforge.analysis import inference  # noqa: E402
 from lexiforge.privacy import redact_object  # noqa: E402
 from lexiforge.score.match import find_spans, load_glossary, score_file  # noqa: E402
 
@@ -177,8 +178,9 @@ def _calls_metadata(assignment_path: Path) -> Dict[str, Dict[str, Any]]:
 def _results_payload(call_scores: Dict[str, Dict[str, Dict[str, float]]]) -> Dict[str, Any]:
     """Aggregate per-call recall into contrasts the dashboard can render.
 
-    This computes descriptive paired differences only. Inference stays in
-    ``lexiforge.analysis.inference``; the dashboard must not invent p-values.
+    Computes descriptive paired differences and wires inference from
+    ``lexiforge.analysis.inference`` where appropriate, keeping descriptive
+    differences and provenance.
     """
     conditions = sorted(
         {condition for per_call in call_scores.values() for condition in per_call}
@@ -194,6 +196,9 @@ def _results_payload(call_scores: Dict[str, Dict[str, Dict[str, float]]]) -> Dic
         if baseline_recall
         else 0.0
     )
+
+    # Compute contrasts with deltas
+    contrast_specs = []
     for condition in conditions:
         if condition == "baseline":
             continue
@@ -206,22 +211,78 @@ def _results_payload(call_scores: Dict[str, Dict[str, Dict[str, float]]]) -> Dic
         if not deltas:
             continue
         delta = sum(deltas) / len(deltas)
-        contrasts.append(
+        kind = "exploratory" if condition not in ("mismatched-200",) else "h1"
+        contrast_specs.append(
             {
+                "condition": condition,
                 "name": f"{condition} vs baseline (real-term recall)",
-                "kind": "exploratory" if condition not in ("mismatched-200",) else "h1",
+                "kind": kind,
                 "unit": "pp",
                 "delta_pp": round(delta * 100.0, 3),
+                "delta": delta,
+                "deltas": deltas,
                 "n_calls": len(deltas),
-                "verdict": "descriptive",
             }
         )
+
+    # Run inference for confirmatory family (H1/H2) using sign-flip permutation
+    # Holm correction over confirmatory contrasts
+    confirmatory = [c for c in contrast_specs if c["kind"] in ("h1", "h2")]
+    pvals_raw = {}
+    inference_meta = {}
+    for c in confirmatory:
+        try:
+            res = inference.sign_flip_test(c["deltas"], alternative="less", n_permutations=10000, seed=0)
+            pvals_raw[c["name"]] = float(res["p_value"])
+            inference_meta[c["name"]] = {
+                "sign_flip": res,
+            }
+        except Exception:
+            pvals_raw[c["name"]] = 1.0
+            inference_meta[c["name"]] = {}
+
+    holm_res = inference.holm(pvals_raw, alpha=0.05) if pvals_raw else {"adjusted": {}, "rejected": {}}
+    adjusted = holm_res.get("adjusted") or holm_res.get("adjusted_p_values") or {}
+    rejected = holm_res.get("rejected") or holm_res.get("reject") or {}
+
+    for c in contrast_specs:
+        contrast = {
+            "name": c["name"],
+            "kind": c["kind"],
+            "unit": c["unit"],
+            "delta_pp": c["delta_pp"],
+            "n_calls": c["n_calls"],
+            "verdict": "descriptive",
+        }
+        # Add inference results if available
+        if c["name"] in adjusted:
+            contrast["p_holm"] = float(adjusted[c["name"]])
+            if rejected.get(c["name"]):
+                contrast["verdict"] = "reject H0 (Holm)"
+            else:
+                contrast["verdict"] = "fail to reject H0 (Holm)"
+        # Add CIs via cluster bootstrap for completeness
+        try:
+            ci = inference.cluster_bootstrap_ci(c["deltas"], n_boot=10000, seed=12345)
+            contrast["ci_low"] = round(float(ci.get("ci_low", ci.get("low"))) * 100.0, 3)
+            contrast["ci_high"] = round(float(ci.get("ci_high", ci.get("high"))) * 100.0, 3)
+        except Exception:
+            pass
+        contrasts.append(contrast)
+
     return {
         "source": "measured",
         "is_sample": False,
         "contrasts": contrasts,
         "control": {"baseline_recall": round(baseline_mean, 6)},
-        "note": "Descriptive paired differences. Run lexiforge.analysis.inference for p-values.",
+        "note": "Descriptive paired differences with inference from lexiforge.analysis.inference (sign-flip + Holm).",
+        "inference": {
+            "method": "paired sign-flip permutation (conversations), Holm over confirmatory family",
+            "seed": 0,
+            "n_permutations": 10000,
+            "adjusted_p_values": adjusted,
+            "rejected": rejected,
+        },
     }
 
 

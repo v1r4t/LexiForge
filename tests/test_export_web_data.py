@@ -65,9 +65,10 @@ def test_export_writes_all_files_and_marks_measured(project):
     results = json.loads((project["out"] / "results.json").read_text(encoding="utf-8"))
     assert results["source"] == "measured"
     assert results["is_sample"] is False
-    # Descriptive only: no p-values may be invented by the exporter.
+    # Inference wired from lexiforge.analysis.inference; descriptive differences preserved.
     for contrast in results["contrasts"]:
-        assert "p_holm" not in contrast
+        assert "delta_pp" in contrast
+    assert "inference" in results
 
 
 def test_export_marks_unrecovered_terms_as_inserted(project):
