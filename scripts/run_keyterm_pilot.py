@@ -117,8 +117,9 @@ def _fallback_build_arms(
 
 
 def _build_arms(
-    call: str,
+    hypothesis: str,
     glossary: list[dict],
+    call_type: str,
     *,
     arms_builder: Callable[..., dict[str, list[str]]] | None,
     budget: int,
@@ -126,12 +127,14 @@ def _build_arms(
 ) -> dict[str, list[str]]:
     builder = arms_builder or _lazy_import_arm_builder()
     if builder is None:
-        built = _fallback_build_arms(f"call {call}", glossary, "general", budget=budget, seed=seed)
+        built = _fallback_build_arms(
+            hypothesis, glossary, call_type, budget=budget, seed=seed
+        )
     else:
         built = builder(
-            hypothesis=f"call {call}",
+            hypothesis=hypothesis,
             glossary=glossary,
-            call_type="general",
+            call_type=call_type,
             budget=budget,
             seed=seed,
         )
@@ -193,12 +196,120 @@ def _write_json(path: Path, payload: Any) -> None:
     path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
+def _load_script(call: Any) -> dict[str, Any]:
+    """Load ``data/scripts/<call>.json`` when present; empty otherwise."""
+    path = Path("data/scripts") / f"{call}.json"
+    if not path.is_file():
+        return {}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, Mapping):
+        raise ValueError(f"{path} must contain a JSON object.")
+    return dict(data)
+
+
+def _reference_text_from_script(call: Any, script: Mapping[str, Any]) -> str:
+    turns = script.get("turns")
+    parts: list[str] = []
+    if isinstance(turns, list):
+        for turn in turns:
+            if not isinstance(turn, Mapping):
+                continue
+            text = turn.get("text")
+            if isinstance(text, str) and text.strip():
+                parts.append(text.strip())
+    text = " ".join(parts)
+    if not text:
+        path = Path("data/scripts") / f"{call}.json"
+        raise FileNotFoundError(f"Reference transcript not found: {path} has no turn text.")
+    return text
+
+
+def _transcript_text(rows: Mapping[str, Mapping[str, Any]]) -> str:
+    parts = [
+        str(row.get("text") or "").strip()
+        for _, row in sorted(rows.items())
+        if isinstance(row, Mapping)
+    ]
+    return " ".join(part for part in parts if part).strip()
+
+
+def _entry_origin(entry: Any) -> str | None:
+    if not isinstance(entry, Mapping):
+        return None
+    for key in ("origin", "kind", "term_type", "origin_type"):
+        value = entry.get(key)
+        if isinstance(value, str) and value in ("real", "fictional", "oov"):
+            return value
+    return None
+
+
+def _origin_glossary(glossary: list[dict]) -> dict[str, list[dict]]:
+    groups: dict[str, list[dict]] = {"real": [], "fictional": [], "oov": []}
+    tagged = False
+    for entry in glossary or []:
+        origin = _entry_origin(entry)
+        if origin is None:
+            continue
+        groups[origin].append(entry)
+        tagged = True
+    if not tagged:
+        # Legacy glossaries without origin tags can still yield the primary
+        # real-term recall metric.
+        return {"real": list(glossary or [])}
+    return {name: entries for name, entries in groups.items() if entries}
+
+
+def _score_arms(
+    *,
+    call: Any,
+    rows_by_arm: Mapping[str, Mapping[str, Mapping[str, Any]]],
+    reference_text: str,
+    glossary: list[dict],
+    script: Mapping[str, Any],
+) -> list[dict[str, Any]]:
+    """Score each arm transcript against the reference script.
+
+    ``score_file`` is the frozen scorer. Scoring per origin (from the
+    glossary's ``origin`` field) yields recall numerator/denominator counts
+    without re-implementing the matcher.
+    """
+    from lexiforge.score.match import score_file
+
+    groups = _origin_glossary(glossary)
+    turns = script.get("turns")
+    n_utterances = len(turns) if isinstance(turns, list) and turns else 1
+
+    scored: list[dict[str, Any]] = []
+    for name in ARM_NAMES:
+        hypothesis = _transcript_text(rows_by_arm.get(name) or {})
+        full = score_file(reference_text, hypothesis, glossary)
+        metrics: dict[str, Any] = {
+            "insertions_per_utterance": {
+                "num": full["insertions"],
+                "den": n_utterances,
+            }
+        }
+        for origin, subset in groups.items():
+            result = score_file(reference_text, hypothesis, subset)
+            metrics[f"{origin}_recall"] = {
+                "num": result["hits"],
+                "den": result["n_reference_occurrences"],
+            }
+        row = {"call_id": str(call), **metrics}
+        scored.append({"name": name, "rows": [row], "metrics": metrics})
+    return scored
+
+
 def _resolve_client(client: Any) -> Any:
     if client is not None:
         return client
+    import os
+
+    if not os.environ.get("GNANI_API_KEY"):
+        raise ValueError("API key is missing (GNANI_API_KEY).")
     from lexiforge.api.client import BatchClient
 
-    # Raises before any network call when GNANI_API_KEY is absent.
+    # The constructor re-checks the key, then opens an httpx client.
     return BatchClient()
 
 
@@ -215,7 +326,7 @@ def _resolve_validator(validator: Callable[[dict], dict] | None) -> Callable[[di
 def _build_report(
     *,
     call: str,
-    arms: dict[str, list[str]],
+    arms: list[dict[str, Any]],
     provenance: dict[str, Any],
     prereg: dict[str, Any],
     report_builder: Callable[..., dict] | None,
@@ -241,6 +352,37 @@ def _build_report(
     return markdown, report
 
 
+def _run_arm(
+    active_client: Any,
+    arm: str,
+    terms: list[str],
+    *,
+    audio: Path,
+    plan: dict[str, Any],
+    plan_path: Path,
+    validate_config: Callable[[dict], dict],
+    fmt: str,
+    language_code: str,
+    budget: int,
+    poll_timeout: float,
+) -> tuple[str, str]:
+    config = _batch_config(
+        arm,
+        terms,
+        fmt=fmt,
+        language_code=language_code,
+        budget=budget,
+    )
+    config = validate_config(config) or config
+    # Job creation is never retried: one POST per arm, one file per job.
+    job_id = active_client.create_job(config, [audio])
+    plan["jobs"][arm] = job_id
+    _write_json(plan_path, plan)
+    active_client.start_job(job_id)
+    status = active_client.wait(job_id, timeout_s=poll_timeout)
+    return job_id, status
+
+
 def run_pilot(
     call,
     audio_path,
@@ -254,6 +396,7 @@ def run_pilot(
     fmt="transcribe",
     language_code="hi-IN,en-IN",
     poll_timeout=1800,
+    reference_text=None,
     arms_builder=None,
     validator=None,
     report_builder=None,
@@ -263,74 +406,126 @@ def run_pilot(
     run_dir = Path(out_dir) / str(call)
     run_dir.mkdir(parents=True, exist_ok=True)
 
-    arms = _build_arms(
-        call,
-        glossary,
-        arms_builder=arms_builder,
-        budget=budget,
-        seed=seed,
-    )
+    script = _load_script(call)
+    call_type = str(script.get("call_type") or "general")
 
     plan: dict[str, Any] = {
         "call_id": call,
         "audio_path": str(audio_path),
         "execute": bool(execute),
+        "call_type": call_type,
         "format": fmt,
         "language_code": language_code,
         "budget": budget,
         "seed": seed,
-        "arms": arms,
+        "arms": {},
         "jobs": {},
     }
     plan_path = run_dir / "plan.json"
-    _write_json(plan_path, plan)
 
     if not execute:
-        return PilotResult(dry_run=True, arms=arms)
+        # No pass-1 transcript exists yet, so selection is provisional and
+        # uses only call metadata. The reference script must never be the
+        # selector input (circularity).
+        plan["arms"] = _build_arms(
+            f"call {call}",
+            glossary,
+            call_type,
+            arms_builder=arms_builder,
+            budget=budget,
+            seed=seed,
+        )
+        plan["selection_source"] = "dry-run placeholder"
+        _write_json(plan_path, plan)
+        return PilotResult(dry_run=True, arms=plan["arms"])
 
     audio = Path(audio_path)
     if not audio.is_file():
         raise FileNotFoundError(f"Audio file not found: {audio}.")
+
+    if reference_text is None:
+        reference_text = _reference_text_from_script(call, script)
 
     validate_config = _resolve_validator(validator)
     active_client = _resolve_client(client)
 
     job_ids: list[str] = []
     statuses: dict[str, str] = {}
-    for arm in ARM_NAMES:
-        config = _batch_config(
+
+    # Baseline first: its transcript is the selector input for the treated arms.
+    baseline_job, baseline_status = _run_arm(
+        active_client,
+        "baseline",
+        [],
+        audio=audio,
+        plan=plan,
+        plan_path=plan_path,
+        validate_config=validate_config,
+        fmt=fmt,
+        language_code=language_code,
+        budget=budget,
+        poll_timeout=poll_timeout,
+    )
+    job_ids.append(baseline_job)
+    statuses[baseline_job] = baseline_status
+    rows_by_arm: dict[str, dict[str, dict[str, Any]]] = {
+        "baseline": _normalise_transcripts(
+            active_client.fetch_all_transcripts(baseline_job)
+        )
+    }
+
+    arms = _build_arms(
+        _transcript_text(rows_by_arm["baseline"]),
+        glossary,
+        call_type,
+        arms_builder=arms_builder,
+        budget=budget,
+        seed=seed,
+    )
+    plan["arms"] = arms
+    plan["selection_source"] = "baseline pass-1 transcript"
+    _write_json(plan_path, plan)
+
+    for arm in ARM_NAMES[1:]:
+        job_id, status = _run_arm(
+            active_client,
             arm,
             arms[arm],
+            audio=audio,
+            plan=plan,
+            plan_path=plan_path,
+            validate_config=validate_config,
             fmt=fmt,
             language_code=language_code,
             budget=budget,
+            poll_timeout=poll_timeout,
         )
-        config = validate_config(config) or config
-        # Job creation is never retried: one POST per arm, one file per job.
-        job_id = active_client.create_job(config, [audio])
         job_ids.append(job_id)
-        plan["jobs"][arm] = job_id
-        _write_json(plan_path, plan)
-        active_client.start_job(job_id)
-        statuses[job_id] = active_client.wait(job_id, timeout_s=poll_timeout)
-
-    rows_by_arm = {
-        arm: _normalise_transcripts(active_client.fetch_all_transcripts(job_id))
-        for arm, job_id in zip(ARM_NAMES, job_ids)
-    }
+        statuses[job_id] = status
+        rows_by_arm[arm] = _normalise_transcripts(
+            active_client.fetch_all_transcripts(job_id)
+        )
 
     provenance = {
         "call_id": call,
+        "call_type": call_type,
         "audio_path": str(audio_path),
         "format": fmt,
         "language_code": language_code,
         "budget": budget,
         "seed": seed,
     }
-    prereg = {"arms": list(ARM_NAMES), "budget": budget}
+    prereg = {"arms": list(ARM_NAMES), "budget": budget, "call_type": call_type}
+    scored_arms = _score_arms(
+        call=call,
+        rows_by_arm=rows_by_arm,
+        reference_text=reference_text,
+        glossary=glossary,
+        script=script,
+    )
     report_markdown, _ = _build_report(
         call=call,
-        arms=arms,
+        arms=scored_arms,
         provenance=provenance,
         prereg=prereg,
         report_builder=report_builder,
