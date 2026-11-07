@@ -6,6 +6,7 @@ import itertools
 
 import pytest
 
+from lexiforge.canon import CANON_VERSION
 from lexiforge.contexts.build import (
     TOPIC_MAX,
     TOPIC_MIN,
@@ -106,14 +107,30 @@ def test_combo_rejection():
 
 
 def test_allowed_combos():
-    assert build_config() == {}
-    assert set(build_config(keyterms=["upi"])) == {"keyterms"}
-    assert set(build_config(topic=GOOD_TOPIC)) == {"topic"}
+    assert build_config() == {"canon_version": CANON_VERSION}
+    assert set(build_config(keyterms=["upi"])) == {"keyterms", "canon_version"}
+    assert set(build_config(topic=GOOD_TOPIC)) == {"topic", "canon_version"}
     assert set(build_config(topic=GOOD_TOPIC, keyterms=["upi"])) == {
         "topic",
         "keyterms",
+        "canon_version",
     }
-    assert set(build_config(speaker_names=["Asha"])) == {"speaker_names"}
+    assert set(build_config(speaker_names=["Asha"])) == {
+        "speaker_names",
+        "canon_version",
+    }
+
+
+def test_build_config_stamps_canon_version():
+    contexts = [
+        build_config(),
+        build_config(keyterms=["upi"]),
+        build_config(topic=GOOD_TOPIC),
+        build_config(topic=GOOD_TOPIC, keyterms=["upi"]),
+        build_config(speaker_names=["Asha"]),
+    ]
+    for cfg in contexts:
+        assert cfg["canon_version"] == CANON_VERSION
 
 
 def test_derive_topic_refuses_reference_key():

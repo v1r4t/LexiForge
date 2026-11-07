@@ -19,6 +19,7 @@ Every dataset must state what it is.
 {
   "mode": "precomputed",
   "data_source": "measured",
+  "canon_version": "matcher-v1.0",
   "merge": "none",
   "redacted": true,
   "redaction_counts": { "[PHONE]": 3, "[NUMBER]": 1 },
@@ -29,12 +30,19 @@ Every dataset must state what it is.
 `data_source` is `"measured"` or `"illustrative_sample"`. `GET /meta` derives
 `is_sample` from it and the front end shows a banner when it is true.
 
+`canon_version` is the frozen matcher (`CANON_VERSION` in `lexiforge/canon.py`)
+that produced the scores and token colouring. Every recall figure depends on
+those rules: a dataset carrying a single value is internally comparable, while
+mixed values mean the numbers are not. `null` or absent means the file predates
+provenance stamping, so its matcher is unknown.
+
 `redacted` records whether the exporter masked PII. `redaction_counts` is the
 tally written by the run, so a reviewer can see that masking actually happened
 rather than trusting a flag.
 
 `results.json` repeats the marker at the top level (`"source"`, `"is_sample"`)
-so the file is self-describing outside the service.
+and the matcher version (`"canon_version"`) so the file is self-describing
+outside the service.
 
 ## calls.json
 
@@ -98,6 +106,7 @@ selector's `S` value. `missed_by_condition` is optional.
 {
   "source": "measured",
   "is_sample": false,
+  "canon_version": "matcher-v1.0",
   "note": "Descriptive paired differences. Run lexiforge.analysis.inference for p-values.",
   "contrasts": [
     {
@@ -132,6 +141,7 @@ See **Provenance** above.
 {
   "data_source": "measured",
   "is_sample": false,
+  "canon_version": "matcher-v1.0",
   "note": "...",
   "mode": "precomputed",
   "conditions": ["baseline", "mismatched-200"],
