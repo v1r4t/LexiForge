@@ -12,6 +12,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 from export_web_data import export  # noqa: E402
 
+from lexiforge.canon import CANON_VERSION  # noqa: E402
+
 GLOSSARY = [
     {"term_id": "R1", "canonical": "UPI", "scoring_aliases": ["UPI"]},
     {"term_id": "R2", "canonical": "NEFT", "scoring_aliases": ["NEFT"]},
@@ -61,10 +63,12 @@ def test_export_writes_all_files_and_marks_measured(project):
 
     config = json.loads((project["out"] / "demo_config.json").read_text(encoding="utf-8"))
     assert config["data_source"] == "measured"
+    assert config["canon_version"] == CANON_VERSION
 
     results = json.loads((project["out"] / "results.json").read_text(encoding="utf-8"))
     assert results["source"] == "measured"
     assert results["is_sample"] is False
+    assert results["canon_version"] == CANON_VERSION
     # Inference wired from lexiforge.analysis.inference; descriptive differences preserved.
     for contrast in results["contrasts"]:
         assert "delta_pp" in contrast

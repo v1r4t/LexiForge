@@ -12,6 +12,8 @@ import re
 import unicodedata
 from typing import Iterable, Mapping, Optional
 
+from lexiforge.canon import CANON_VERSION
+
 MAX_KEYTERMS = 200
 TOPIC_MIN = 30
 TOPIC_MAX = 1600
@@ -137,7 +139,7 @@ def build_config(
             f"keyterms={has_keyterms}, speaker_names={has_speakers}"
         )
 
-    config: dict = {}
+    config: dict = {"canon_version": CANON_VERSION}
     if has_topic:
         assert topic is not None
         config["topic"] = _check_topic(topic)
