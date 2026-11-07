@@ -6,8 +6,9 @@ Score: ``S = 0.55*Lex + 0.25*Phon + 0.20*Prior``.
 
 - Lex: max over aliases of
   ``0.7 * char-trigram cosine + 0.3 * normalised BM25-style overlap``,
-  plus 0.35 if a canonicalised alias is a substring of the canonicalised
-  hypothesis (capped at 1.0).
+  plus 0.35 if a canonicalised alias matches the canonicalised hypothesis on
+  token boundaries (a single token or a whole multi-token phrase), capped at
+  1.0.
 - Phon: max over aliases and 1-3 token windows of ``skeleton_similarity``,
   vetoed to 0 for declared hard-negative pairs.
 - Prior: Laplace-smoothed call_type prior, normalised per call
@@ -359,6 +360,22 @@ def _cosine(a: Counter, b: Counter) -> float:
     return dot / (na * nb)
 
 
+def _alias_hit(alias_canon: str, hyp_canon: str, hyp_toks: set[str]) -> bool:
+    """True when a canonicalised alias matches the hypothesis on token bounds.
+
+    A single-token alias must be one of the hypothesis tokens; a multi-token
+    alias must appear as a whole phrase. Padding both sides with spaces keeps
+    matches from straddling token boundaries (``20`` inside ``2024``).
+    """
+    toks = alias_canon.split()
+    if not toks:
+        return False
+    if len(toks) == 1:
+        return toks[0] in hyp_toks
+    phrase = " ".join(toks)
+    return f" {phrase} " in f" {hyp_canon} "
+
+
 def _lexical(alias_canon: str, hyp_canon: str, hyp_toks: set[str], idf: dict[str, float]) -> float:
     if not alias_canon or not hyp_canon:
         return 0.0
@@ -457,7 +474,7 @@ def score_breakdown(hypothesis, glossary, call_type, priors=None) -> dict[str, d
         hit = False
         for c in canon_alias[tid]:
             best = max(best, _lexical(c, hyp_canon, hyp_tok_set, idf))
-            if c and c in hyp_canon:
+            if _alias_hit(c, hyp_canon, hyp_tok_set):
                 hit = True
         if hit:
             best = min(1.0, best + SUBSTRING_BONUS)
