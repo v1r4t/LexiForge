@@ -386,6 +386,27 @@ def test_missing_audio_fails_before_any_job(tmp_path):
     assert client.created == []
 
 
+def test_create_job_retries_clean_429(monkeypatch):
+    from pathlib import Path
+
+    from lexiforge.api.client import BatchApiError
+    from scripts.run_keyterm_pilot import _create_job_with_retry
+
+    class Client:
+        calls = 0
+
+        def create_job(self, config, files):
+            self.calls += 1
+            if self.calls == 1:
+                raise BatchApiError("rate", status_code=429)
+            return "job-1"
+
+    monkeypatch.setattr("scripts.run_keyterm_pilot.time.sleep", lambda _: None)
+    client = Client()
+    assert _create_job_with_retry(client, {}, Path("a.wav")) == "job-1"
+    assert client.calls == 2
+
+
 def test_cli_defaults_to_dry_run(tmp_path, monkeypatch, capsys):
     def explode(*args, **kwargs):
         raise AssertionError("CLI dry run must not construct BatchClient")

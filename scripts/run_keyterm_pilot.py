@@ -16,6 +16,7 @@ dependency is imported lazily and can be injected for tests:
 from __future__ import annotations
 
 import json
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Mapping
@@ -356,6 +357,28 @@ def _build_report(
     return markdown, report
 
 
+def _create_job_with_retry(
+    client: Any,
+    config: dict,
+    audio: Path,
+    *,
+    attempts: int = 6,
+    base: float = 5.0,
+) -> str:
+    """Create a job, waiting out 429s; never retry ambiguous failures."""
+    from lexiforge.api.client import BatchApiError
+
+    for attempt in range(attempts):
+        try:
+            return client.create_job(config, [audio])
+        except BatchApiError as exc:
+            rate_limited = getattr(exc, "status_code", None) == 429
+            if not rate_limited or attempt >= attempts - 1:
+                raise
+            time.sleep(base * (2**attempt))
+    raise RuntimeError("unreachable")
+
+
 def _run_arm(
     active_client: Any,
     arm: str,
@@ -378,8 +401,8 @@ def _run_arm(
         budget=budget,
     )
     config = validate_config(config) or config
-    # Job creation is never retried: one POST per arm, one file per job.
-    job_id = active_client.create_job(config, [audio])
+    # Job creation is never retried ambiguously; a 429 is a clean rejection.
+    job_id = _create_job_with_retry(active_client, config, audio)
     plan["jobs"][arm] = job_id
     _write_json(plan_path, plan)
     active_client.start_job(job_id)
