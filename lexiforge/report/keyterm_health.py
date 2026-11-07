@@ -301,6 +301,11 @@ def _rows_insertion_counts(rows: Iterable[Mapping[str, Any]]) -> tuple[float, fl
 
 
 def _decoder_counts_from_rows(rows: Iterable[Mapping[str, Any]]) -> tuple[float, float] | None:
+    """Spoken context terms still missed / all spoken context terms.
+
+    The denominator is every term the reference says was spoken and the arm
+    supplied in context; the numerator is the subset the hypothesis missed.
+    """
     num = den = 0
     for row in rows or []:
         in_context = any(
@@ -309,17 +314,8 @@ def _decoder_counts_from_rows(rows: Iterable[Mapping[str, Any]]) -> tuple[float,
         )
         if not in_context:
             continue
-        missed = (
-            row.get("missed") is True
-            or row.get("hit") is False
-            or row.get("recalled") is False
-            or row.get("correct") is False
-            or row.get("matched") is False
-        )
-        if not missed:
-            continue
         den += 1
-        if row.get("decoder_ignored") is True or row.get("ignored") is True:
+        if not _is_hit(row):
             num += 1
     if den == 0:
         return None
@@ -410,16 +406,13 @@ def _cluster_key(prereg: Mapping[str, Any]) -> str:
 
 
 def _n_calls(arms: Iterable[Mapping[str, Any]], prereg: Mapping[str, Any]) -> int:
-    for key in ("n_calls", "n", "planned_calls"):
-        value = prereg.get(key)
-        if isinstance(value, int) and not isinstance(value, bool) and value > 0:
-            return value
+    """Observed calls in this run; the pre-registered planned n is not evidence."""
     cluster_key = _cluster_key(prereg)
     best = 0
     for arm in arms:
         clusters = {row.get(cluster_key) for row in arm["rows"] if row.get(cluster_key) is not None}
         best = max(best, len(clusters))
-    return best or 1
+    return best
 
 
 def _term_level(arms: Iterable[Mapping[str, Any]]) -> dict:
@@ -477,8 +470,10 @@ def verdict(
     """Return PASS | FAIL | INCONCLUSIVE under the pre-registered rule.
 
     PASS needs the recall CI lower bound >= margin AND the insertion CI upper
-    bound <= cap. A missing/wide CI is INCONCLUSIVE, never PASS. One call is
-    always INCONCLUSIVE.
+    bound <= cap. The decision n is the minimum paired-call count across the two
+    deltas; a pre-registered planned n is never treated as evidence. A
+    missing/wide CI is INCONCLUSIVE, never PASS. One call is always
+    INCONCLUSIVE.
     """
     prereg = report.get("prereg") or {}
     recall_margin = float(prereg.get("recall_margin", recall_margin))
@@ -488,15 +483,13 @@ def verdict(
     recall = paired.get("real_recall") or {}
     insertion = paired.get("insertions_per_utterance") or {}
 
-    n = report.get("n_calls")
-    if not isinstance(n, (int, float)) or isinstance(n, bool):
-        counts = [
-            delta.get("n")
-            for delta in (recall, insertion)
-            if isinstance(delta, Mapping) and isinstance(delta.get("n"), int)
-        ]
-        n = max(counts) if counts else 1
-    if n < 2:
+    paired_counts = [recall.get("n"), insertion.get("n")]
+    if not all(
+        isinstance(count, int) and not isinstance(count, bool)
+        for count in paired_counts
+    ):
+        return "INCONCLUSIVE"
+    if min(paired_counts) < 2:
         return "INCONCLUSIVE"
 
     recall_low = _bound(recall, "ci_low")
@@ -585,6 +578,11 @@ def build_report(
             if delta["deltas"]:
                 delta["comparison"] = f"{selected['name']} vs {baseline['name']}"
                 report["paired_deltas"][metric] = delta
+        if report["paired_deltas"]:
+            # Display the observed paired count, never the planned prereg n.
+            report["n_calls"] = min(
+                int(delta["n"]) for delta in report["paired_deltas"].values()
+            )
         report["lift"] = _lift_from(report["paired_deltas"].get("real_recall"))
 
     report["verdict"] = verdict(report)
@@ -715,6 +713,14 @@ def render_markdown(report: Mapping[str, Any]) -> str:
         )
     if not report.get("metrics_summary"):
         lines.append("| none | n/a | n/a | n/a | n/a | n/a | n/a |")
+
+    lines.extend(
+        [
+            "",
+            "Decoder ignore is reported as numerator/denominator: spoken context "
+            "terms still missed / spoken context terms.",
+        ]
+    )
 
     lines.extend(["", "### Paired deltas (95% CI)", ""])
     paired = report.get("paired_deltas") or {}
