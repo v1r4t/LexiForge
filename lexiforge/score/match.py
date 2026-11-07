@@ -20,6 +20,7 @@ import unicodedata
 from pathlib import Path
 
 from lexiforge.canon import canon
+from lexiforge.observability import get_metrics, get_tracer
 
 __all__ = [
     "AliasCollision",
@@ -165,6 +166,7 @@ def build_alias_map(glossary) -> dict[str, str]:
                 continue
             owner = alias_map.get(key)
             if owner is not None and owner != tid:
+                get_metrics().increment("matcher.alias_collisions")
                 raise AliasCollision(
                     f"alias key {key!r} shared by term {owner!r} and term {tid!r}"
                 )
@@ -181,40 +183,49 @@ def find_spans(text: str, glossary) -> list[dict]:
     indexing ``text``. Raises :class:`AliasCollision` if two term ids
     share an alias key.
     """
-    alias_map = build_alias_map(glossary)
-    if not alias_map:
-        return []
-    max_n = max(len(key.split()) for key in alias_map)
-    toks = _tokenize_with_spans(text)
-    keys = [key for key, _, _ in toks]
-    # Collect every candidate n-gram, then take longest spans first so a
-    # longer alias always beats an overlapping shorter one.
-    candidates: list[tuple[int, int, int, str, str]] = []  # (-n, i, n, key, tid)
-    for i in range(len(keys)):
-        for n in range(min(max_n, len(keys) - i), 0, -1):
-            key = " ".join(keys[i : i + n])
-            tid = alias_map.get(key)
-            if tid is not None:
-                candidates.append((-n, i, n, key, tid))
-    candidates.sort()
-    used = [False] * len(keys)
-    spans: list[dict] = []
-    for _, i, n, key, tid in candidates:
-        if any(used[i : i + n]):
-            continue
-        for k in range(i, i + n):
-            used[k] = True
-        spans.append(
-            {
-                "start": toks[i][1],
-                "end": toks[i + n - 1][2],
-                "term_id": tid,
-                "surface": text[toks[i][1] : toks[i + n - 1][2]],
-                "canon_key": key,
-            }
-        )
-    spans.sort(key=lambda s: s["start"])
-    return spans
+    metrics = get_metrics()
+    attributes = {
+        "text_length": len(text) if isinstance(text, str) else 0,
+        "glossary_size": len(glossary) if hasattr(glossary, "__len__") else None,
+    }
+    with get_tracer().span("matcher.find_spans", attributes) as record:
+        alias_map = build_alias_map(glossary)
+        if not alias_map:
+            record.attributes["spans_found"] = 0
+            return []
+        max_n = max(len(key.split()) for key in alias_map)
+        toks = _tokenize_with_spans(text)
+        keys = [key for key, _, _ in toks]
+        # Collect every candidate n-gram, then take longest spans first so a
+        # longer alias always beats an overlapping shorter one.
+        candidates: list[tuple[int, int, int, str, str]] = []  # (-n, i, n, key, tid)
+        for i in range(len(keys)):
+            for n in range(min(max_n, len(keys) - i), 0, -1):
+                key = " ".join(keys[i : i + n])
+                tid = alias_map.get(key)
+                if tid is not None:
+                    candidates.append((-n, i, n, key, tid))
+        candidates.sort()
+        used = [False] * len(keys)
+        spans: list[dict] = []
+        for _, i, n, key, tid in candidates:
+            if any(used[i : i + n]):
+                continue
+            for k in range(i, i + n):
+                used[k] = True
+            spans.append(
+                {
+                    "start": toks[i][1],
+                    "end": toks[i + n - 1][2],
+                    "term_id": tid,
+                    "surface": text[toks[i][1] : toks[i + n - 1][2]],
+                    "canon_key": key,
+                }
+            )
+        spans.sort(key=lambda s: s["start"])
+        record.attributes["spans_found"] = len(spans)
+        metrics.increment("matcher.spans_found", len(spans))
+        return spans
 
 
 def _align_hyp_to_ref(
