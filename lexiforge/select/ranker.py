@@ -165,21 +165,21 @@ def skeleton_similarity(a: str, b: str) -> float:
     return _skeleton_similarity(a, b)
 
 
-# Registry backing the two-argument is_hard_negative_pair contract; refreshed
-# on every select()/score_breakdown() call from the glossary declarations.
-_DECLARED: set[frozenset] = set()
-
-
 def is_hard_negative_pair(a: str, b: str, declared=None) -> bool:
-    """True if ``a``/``b`` are a declared hard-negative pair."""
+    """True if ``a``/``b`` are a declared hard-negative pair.
+
+    ``declared`` is an explicit, call-local pool of ``frozenset`` pairs. When
+    omitted, no process-global registry is consulted; only the external
+    phonetic helper is used.
+    """
     if a == b:
         return False
-    pool = _DECLARED if declared is None else declared
-    try:
-        if frozenset((a, b)) in pool:
-            return True
-    except TypeError:
-        pass
+    if declared is not None:
+        try:
+            if frozenset((a, b)) in declared:
+                return True
+        except TypeError:
+            pass
     if _ext_is_hard_negative_pair is not None:
         try:
             return bool(_ext_is_hard_negative_pair(a, b))
@@ -442,13 +442,14 @@ def score_breakdown(hypothesis, glossary, call_type, priors=None) -> dict[str, d
     total = sum(counts.values())
     v = len(order)
 
-    # Declared hard-negative pairs (symmetric closure over known ids).
-    global _DECLARED
-    _DECLARED = set()
+    # Declared hard-negative pairs (symmetric closure over known ids). Kept
+    # call-local so concurrent selections with different glossaries cannot
+    # leak declarations into one another.
+    declared: set[frozenset] = set()
     for tid in order:
         for p in pair_map.get(tid, []):
             if p in alias_map and p != tid:
-                _DECLARED.add(frozenset((tid, p)))
+                declared.add(frozenset((tid, p)))
 
     lex: dict[str, float] = {}
     substr: dict[str, bool] = {}
@@ -467,7 +468,7 @@ def score_breakdown(hypothesis, glossary, call_type, priors=None) -> dict[str, d
     # Veto: the weaker member of a declared pair loses its phonetic component
     # once the stronger member is lexically anchored.
     vetoed: set[str] = set()
-    for pair in sorted(_DECLARED, key=lambda p: sorted(p)):
+    for pair in sorted(declared, key=lambda p: sorted(p)):
         a, b = sorted(pair)
         la, lb = lex[a], lex[b]
         if la >= ANCHOR_LEX and la >= lb and lb < la:

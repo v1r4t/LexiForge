@@ -3,7 +3,9 @@
 Run with:  python -m pytest tests/test_ranker.py -q
 """
 
+import sys
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 
 from lexiforge.select.ranker import is_hard_negative_pair, score_breakdown, select
 
@@ -71,6 +73,35 @@ class TestHardNegative(unittest.TestCase):
         # Without the declared pair the phonetic neighbour also scores —
         # the veto, not the lexicon, is what excludes it above.
         self.assertIn("PhonPe", res)
+
+
+class TestHardNegativeIsolation(unittest.TestCase):
+    """Declared pairs must not leak between concurrent selections."""
+
+    def test_declared_pairs_do_not_leak_across_threads(self):
+        hypothesis = "phonepe se paise bhejo"
+        declared = _glossary()
+        plain = [
+            {k: v for k, v in e.items() if k != "hard_negatives"} for e in _glossary()
+        ]
+        base_declared = score_breakdown(hypothesis, declared, "upi")
+        base_plain = score_breakdown(hypothesis, plain, "upi")
+        # The two glossaries genuinely differ under the veto.
+        self.assertEqual(base_declared["PhonPe"]["phon"], 0.0)
+        self.assertGreater(base_plain["PhonPe"]["phon"], 0.0)
+
+        # Force frequent thread switches so any shared state is exposed.
+        old_interval = sys.getswitchinterval()
+        sys.setswitchinterval(1e-6)
+        try:
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                for _ in range(200):
+                    fd = pool.submit(score_breakdown, hypothesis, declared, "upi")
+                    fp = pool.submit(score_breakdown, hypothesis, plain, "upi")
+                    self.assertEqual(fd.result(), base_declared)
+                    self.assertEqual(fp.result(), base_plain)
+        finally:
+            sys.setswitchinterval(old_interval)
 
 
 class TestDeterminism(unittest.TestCase):
