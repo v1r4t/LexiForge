@@ -1,10 +1,11 @@
 """Tests for Gnani Timbre TTS client. No network: httpx.MockTransport only."""
 
+import json
 import unittest
 
 import httpx
 
-from lexiforge.tts.client import SYNTHESIZE_PATH, TimbreClient, TTSResult
+from lexiforge.tts.client import TimbreClient, TTSResult
 from lexiforge.tts.errors import (
     TTSAuthError,
     TTSRateLimitError,
@@ -42,7 +43,7 @@ class TestTimbreClient(unittest.TestCase):
             seen["method"] = request.method
             seen["path"] = request.url.path
             seen["headers"] = dict(request.headers)
-            seen["body"] = request.read()
+            seen["json"] = request.read()
             return httpx.Response(
                 200,
                 content=b"RIFF....WAVE",
@@ -51,17 +52,54 @@ class TestTimbreClient(unittest.TestCase):
 
         transport = httpx.MockTransport(handler)
         client = TimbreClient(api_key="test-key", base_url="https://api.example.test", transport=transport)
-        result = client.synthesize("नमस्ते", voice="default", language="hi-IN", fmt="wav")
+        result = client.synthesize("नमस्ते")
 
         self.assertIsInstance(result, TTSResult)
         self.assertEqual(result.audio, b"RIFF....WAVE")
         self.assertEqual(result.fmt, "wav")
-        self.assertEqual(result.voice, "default")
-        self.assertTrue(seen["path"].endswith(SYNTHESIZE_PATH))
+        self.assertEqual(result.voice, "Poorvi")
+        self.assertEqual(result.sample_rate, 8000)
+        self.assertEqual(seen["path"], "/api/v1/tts/inference")
         self.assertEqual(seen["method"], "POST")
-        # Should not log key
-        body_str = seen["body"].decode("utf-8", "replace")
-        self.assertNotIn("test-key", body_str)
+        self.assertNotIn("authorization", seen["headers"])
+        self.assertEqual(seen["headers"].get("x-api-key-id"), "test-key")
+
+        payload = json.loads(seen["json"])
+        self.assertEqual(payload["voice"], "Poorvi")
+        self.assertEqual(payload["model"], "timbre-v2.5")
+        self.assertEqual(payload["language"], "hi-en")
+        self.assertEqual(
+            payload["audio_config"],
+            {
+                "sample_rate": 8000,
+                "num_channels": 1,
+                "sample_width": 2,
+                "encoding": "linear_pcm",
+                "container": "wav",
+            },
+        )
+        # Should not include the key in the body
+        self.assertNotIn("test-key", seen["json"].decode("utf-8", "replace"))
+
+    def test_custom_voice_model_language_and_sample_rate(self):
+        seen = {}
+
+        def handler(request):
+            seen["json"] = request.read()
+            return httpx.Response(200, content=b"audio")
+
+        transport = httpx.MockTransport(handler)
+        client = TimbreClient(api_key="k", transport=transport)
+        result = client.synthesize(
+            "hello", voice="Nalini", model="timbre-v3.0", language="hi-IN", sample_rate=16000
+        )
+
+        payload = json.loads(seen["json"])
+        self.assertEqual(payload["voice"], "Nalini")
+        self.assertEqual(payload["model"], "timbre-v3.0")
+        self.assertEqual(payload["language"], "hi-IN")
+        self.assertEqual(payload["audio_config"]["sample_rate"], 16000)
+        self.assertEqual(result.sample_rate, 16000)
 
     def test_401_maps_to_auth_error(self):
         def handler(request):

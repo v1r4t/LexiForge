@@ -1,4 +1,16 @@
-"""Gnani Timbre TTS client."""
+"""Gnani Timbre TTS client.
+
+Contract verified against
+https://docs.gnani.ai/api/TTS/tts-inference.md:
+
+    POST https://api.vachana.ai/api/v1/tts/inference
+    X-API-Key-ID: <key>
+    JSON body: text, voice, model, language, speed?, audio_config
+    Response: raw binary audio in the requested container.
+
+Defaults target the Hinglish telephony pilot: Timbre v2.5 voice ``Poorvi``,
+``language="hi-en"``, 8 kHz mono 16-bit WAV.
+"""
 
 from __future__ import annotations
 
@@ -15,8 +27,12 @@ from .errors import (
     TTSValidationError,
 )
 
-SYNTHESIZE_PATH = "/v1/tts/synthesize"
-DEFAULT_BASE_URL = "https://api.gnani.ai"
+SYNTHESIZE_PATH = "/api/v1/tts/inference"
+DEFAULT_BASE_URL = "https://api.vachana.ai"
+DEFAULT_MODEL = "timbre-v2.5"
+DEFAULT_VOICE = "Poorvi"  # Timbre v2.5 Hinglish voice
+DEFAULT_LANGUAGE = "hi-en"
+DEFAULT_SAMPLE_RATE = 8000
 
 
 @dataclass(frozen=True)
@@ -39,7 +55,11 @@ class TimbreClient:
         if api_key is None:
             api_key = os.environ.get("GNANI_API_KEY")
         if base_url is None:
-            base_url = os.environ.get("GNANI_TTS_BASE_URL") or DEFAULT_BASE_URL
+            base_url = (
+                os.environ.get("GNANI_TTS_BASE_URL")
+                or os.environ.get("GNANI_BASE_URL")
+                or DEFAULT_BASE_URL
+            )
         if not api_key:
             raise TTSAuthError("API key is missing (GNANI_API_KEY).")
         self.api_key = api_key
@@ -52,25 +72,36 @@ class TimbreClient:
         text: str,
         *,
         voice: str | None = None,
-        language: str = "hi-IN",
+        model: str = DEFAULT_MODEL,
+        language: str = DEFAULT_LANGUAGE,
         fmt: str = "wav",
+        sample_rate: int = DEFAULT_SAMPLE_RATE,
+        speed: float | None = None,
     ) -> TTSResult:
         if not text or not text.strip():
             raise TTSValidationError("text is empty")
         if voice is None:
-            voice = os.environ.get("GNANI_TTS_VOICE") or "default"
+            voice = os.environ.get("GNANI_TTS_VOICE") or DEFAULT_VOICE
 
-        url = self.base_url + SYNTHESIZE_PATH
-        headers = {
-            "X-API-Key-ID": self.api_key,
-            "Authorization": f"Bearer {self.api_key}",
+        audio_config: dict[str, Any] = {
+            "sample_rate": sample_rate,
+            "num_channels": 1,
+            "sample_width": 2,
+            "encoding": "linear_pcm",
+            "container": fmt,
         }
         payload: dict[str, Any] = {
             "text": text,
             "voice": voice,
+            "model": model,
             "language": language,
-            "format": fmt,
+            "audio_config": audio_config,
         }
+        if speed is not None:
+            payload["speed"] = speed
+
+        url = self.base_url + SYNTHESIZE_PATH
+        headers = {"X-API-Key-ID": self.api_key}
         try:
             response = self._client.post(url, headers=headers, json=payload)
         except httpx.TimeoutException as exc:
@@ -83,22 +114,29 @@ class TimbreClient:
         if response.status_code == 429:
             raise TTSRateLimitError("rate limited")
         if response.status_code == 400:
-            raise TTSValidationError("validation error")
+            raise TTSValidationError(_error_message(response))
         if response.status_code >= 500:
-            raise TTSUnavailableError(f"server error: HTTP {response.status_code}")
+            raise TTSUnavailableError(
+                f"server error: HTTP {response.status_code}: {_error_message(response)}"
+            )
 
-        audio = response.content
-        sample_rate = 24000
-        # Try to extract sample rate from headers if present
-        if "x-sample-rate" in response.headers:
-            try:
-                sample_rate = int(response.headers["x-sample-rate"])
-            except Exception:
-                pass
-        elif "sample-rate" in response.headers:
-            try:
-                sample_rate = int(response.headers["sample-rate"])
-            except Exception:
-                pass
+        return TTSResult(
+            audio=response.content,
+            fmt=fmt,
+            sample_rate=sample_rate,
+            voice=voice,
+        )
 
-        return TTSResult(audio=audio, fmt=fmt, sample_rate=sample_rate, voice=voice)
+
+def _error_message(response: httpx.Response) -> str:
+    """Best-effort error text without echoing credentials."""
+    try:
+        body = response.json()
+    except Exception:
+        return response.text[:200]
+    if isinstance(body, dict):
+        for key in ("message", "detail", "error"):
+            value = body.get(key)
+            if isinstance(value, str) and value:
+                return value[:300]
+    return str(body)[:300]
