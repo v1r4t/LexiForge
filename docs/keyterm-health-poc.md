@@ -51,7 +51,7 @@ Pre-registered before any pass-2 data exists (see also [`docs/preregistration.md
 - **Glossary-term insertions per utterance** (H2): numerator = inserted glossary-term spans (token-aligned; insertion if aligns to different ref term or nothing; same-term alignment is a hit). Denominator = utterances.
 - **Fictional/OOV recall**: benefit/guardrail strata.
 - **WER**: guardrail (raw); folded WER demoted to appendix if used.
-- **Decoder-ignore rate**: fraction of context terms the reference says were spoken that the hypothesis still missed — reported with **numerator/denominator**, not bare percentage.
+- **Decoder-ignore rate**: numerator = context terms the reference says were spoken that the hypothesis still missed; denominator = all context terms the reference says were spoken. Reported with **numerator/denominator**, not bare percentage.
 
 ### Non-inferiority verdict
 - **Recall non-inferiority:** 95% CI lower bound of (selected − baseline) real-term recall ≥ −5pp.

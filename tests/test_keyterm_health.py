@@ -134,6 +134,49 @@ def test_n_equals_one_is_inconclusive() -> None:
     assert verdict(report) == "INCONCLUSIVE"
 
 
+def test_single_paired_call_with_planned_n_is_inconclusive() -> None:
+    baseline = {
+        "name": "baseline",
+        "rows": [
+            {
+                "call_id": "c1",
+                "real_recall": {"num": 8, "den": 10},
+                "insertions_per_utterance": {"num": 2, "den": 4},
+            },
+        ],
+    }
+    selected = {
+        "name": "selected-200",
+        "rows": [
+            {
+                "call_id": "c1",
+                "real_recall": {"num": 9, "den": 10},
+                "insertions_per_utterance": {"num": 2, "den": 4},
+            },
+        ],
+    }
+    report = build_report(
+        call_id="c1",
+        arms=[baseline, selected],
+        provenance={"model": "m"},
+        prereg={
+            "recall_margin": -0.05,
+            "insertion_cap": 0.5,
+            "planned_calls": 20,
+        },
+    )
+    # One paired call cannot pass, even if the pre-registration planned 20.
+    assert report["paired_deltas"]["real_recall"]["n"] == 1
+    assert report["n_calls"] == 1
+    assert verdict(report) == "INCONCLUSIVE"
+
+
+def test_verdict_uses_minimum_paired_n_across_metrics() -> None:
+    report = _report_with_bounds((-0.01, 0.04), (0.0, 0.2), n=4)
+    report["paired_deltas"]["insertions_per_utterance"]["n"] = 1
+    assert verdict(report) == "INCONCLUSIVE"
+
+
 def test_build_report_keeps_counts_for_recall_and_decoder_ignore() -> None:
     report = build_report(
         call_id="c1",
@@ -218,6 +261,7 @@ def test_build_report_derives_decoder_ignore_counts_from_rows() -> None:
             "in_context": True,
             "decoder_ignored": True,
         },
+        {"call_id": "c1", "term_id": "t4", "origin": "real", "hit": True, "in_context": True},
     ]
     report = build_report(
         call_id="c1",
@@ -226,8 +270,10 @@ def test_build_report_derives_decoder_ignore_counts_from_rows() -> None:
         prereg={},
     )
     decoder = report["metrics_summary"][0]["decoder_ignore"]
-    assert decoder["num"] == 1
-    assert decoder["den"] == 2
+    # Denominator is every spoken context term; numerator is those still missed.
+    assert decoder["num"] == 2
+    assert decoder["den"] == 3
+    assert decoder["rate"] == pytest.approx(2 / 3)
 
 
 def test_markdown_has_seven_sections_and_disclosures() -> None:
@@ -285,6 +331,30 @@ def test_decoder_ignore_renders_counts() -> None:
     )
     md = render_markdown(report)
     assert "2/5" in md
+
+
+def test_decoder_ignore_markdown_shows_spoken_context_denominator() -> None:
+    rows = [
+        {"call_id": "c1", "term_id": "t1", "origin": "real", "hit": False, "in_context": True},
+        {
+            "call_id": "c1",
+            "term_id": "t2",
+            "origin": "real",
+            "hit": False,
+            "in_context": True,
+            "decoder_ignored": True,
+        },
+        {"call_id": "c1", "term_id": "t3", "origin": "real", "hit": True, "in_context": True},
+    ]
+    report = build_report(
+        call_id="c1",
+        arms=[{"name": "baseline", "metrics": {}, "rows": rows}],
+        provenance={"model": "m"},
+        prereg={},
+    )
+    md = render_markdown(report)
+    assert "2/3" in md
+    assert "spoken context terms" in md
 
 
 def test_markdown_is_labelled_internal_only() -> None:
