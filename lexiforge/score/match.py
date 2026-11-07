@@ -57,32 +57,29 @@ def _tokenize_with_spans(text: str) -> list[tuple[str, int, int]]:
     """
     if text is None:
         raise TypeError("text must be str, not None")
-    # 1:1 character swap (chandrabindu -> anusvara, as in canon step 3), so
-    # indices into the working copy stay valid for the original text.
-    work = text.replace("\u0901", "\u0902")
     raw_toks: list[tuple[str, int, int]] = []
-    buf: list[str] = []
-    start = 0
-    for i, ch in enumerate(work):
+    start: int | None = None
+    for i, ch in enumerate(text):
         if ch in _APOSTROPHES:
-            continue  # deleted, never a token boundary (canon step 6)
+            # Never a token boundary. Keep it inside the pending raw slice:
+            # canon() normalises before deleting apostrophes, so feeding it the
+            # raw slice (rather than a buffer with apostrophes stripped) keeps
+            # NFC from composing across a deleted apostrophe.
+            continue
         if _is_boundary(ch):
-            if buf:
-                raw = "".join(buf)
-                key = canon(raw)
+            if start is not None:
+                key = canon(text[start:i])
                 if key:
                     # Token ran from `start` to the boundary at `i`.
                     raw_toks.append((key, start, i))
-                buf = []
+                start = None
             continue
-        if not buf:
+        if start is None:
             start = i
-        buf.append(ch)
-    if buf:
-        raw = "".join(buf)
-        key = canon(raw)
+    if start is not None:
+        key = canon(text[start:])
         if key:
-            raw_toks.append((key, start, len(work)))
+            raw_toks.append((key, start, len(text)))
     # Acronym letter-joining (canon step 7): runs of 3-6 single letters join.
     out: list[tuple[str, int, int]] = []
     i = 0
