@@ -295,9 +295,14 @@ class BatchClient:
         return str(job_id)
 
     def start_job(self, job_id: str) -> None:
-        """Start a created job. Not retried (state-changing POST)."""
+        """Start a created job.
+
+        A 429 means the start was not accepted, so it is safe to retry with the
+        client's jittered backoff. The job id is created once and never
+        re-POSTed.
+        """
         self._call(
-            "POST", self._job_url(job_id, "start"), action="start_job", retry_transient=False
+            "POST", self._job_url(job_id, "start"), action="start_job", retry_transient=True
         )
 
     def get_job(self, job_id: str) -> dict:

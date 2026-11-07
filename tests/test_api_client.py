@@ -138,6 +138,19 @@ class TestJobControl(unittest.TestCase):
         self.assertEqual(seen["method"], "POST")
         self.assertTrue(seen["path"].endswith("/stt/v3/batch/jobs/job-9/start"), seen["path"])
 
+    def test_start_job_retries_transient_429(self):
+        calls = []
+
+        def handler(request):
+            calls.append(request)
+            if len(calls) == 1:
+                return json_response(429, {"code": "RATE_LIMITED"})
+            return json_response(200, {"status": "QUEUED"})
+
+        with make_client(handler) as client:
+            self.assertIsNone(client.start_job("job-1"))
+        self.assertEqual(len(calls), 2)
+
     def test_auth_header(self):
         seen = {}
 
