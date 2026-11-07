@@ -1,17 +1,30 @@
 """Tests for Gnani Timbre TTS client. No network: httpx.MockTransport only."""
 
+import io
 import json
+import struct
 import unittest
+import wave
 
 import httpx
 
-from lexiforge.tts.client import TimbreClient, TTSResult
+from lexiforge.tts.client import TimbreClient, TTSResult, normalize_wav
 from lexiforge.tts.errors import (
     TTSAuthError,
     TTSRateLimitError,
     TTSUnavailableError,
     TTSValidationError,
 )
+
+
+def _wav_bytes() -> bytes:
+    buffer = io.BytesIO()
+    with wave.open(buffer, "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(8000)
+        wf.writeframes(b"\x00\x00" * 8)
+    return buffer.getvalue()
 
 
 class TestTimbreClient(unittest.TestCase):
@@ -46,7 +59,7 @@ class TestTimbreClient(unittest.TestCase):
             seen["json"] = request.read()
             return httpx.Response(
                 200,
-                content=b"RIFF....WAVE",
+                content=_wav_bytes(),
                 headers={"Content-Type": "audio/wav"},
             )
 
@@ -55,7 +68,7 @@ class TestTimbreClient(unittest.TestCase):
         result = client.synthesize("नमस्ते")
 
         self.assertIsInstance(result, TTSResult)
-        self.assertEqual(result.audio, b"RIFF....WAVE")
+        self.assertEqual(result.audio, _wav_bytes())
         self.assertEqual(result.fmt, "wav")
         self.assertEqual(result.voice, "Poorvi")
         self.assertEqual(result.sample_rate, 8000)
@@ -163,6 +176,24 @@ class TestTimbreClient(unittest.TestCase):
         client = TimbreClient(api_key="k", transport=transport)
         with self.assertRaises(TTSUnavailableError):
             client.synthesize("hello")
+
+
+    def test_normalize_streaming_wav_header(self):
+        buffer = io.BytesIO()
+        with wave.open(buffer, "wb") as wf:
+            wf.setnchannels(1)
+            wf.setsampwidth(2)
+            wf.setframerate(8000)
+            wf.writeframes(b"\x00\x00" * 800)
+        raw = bytearray(buffer.getvalue())
+        raw[4:8] = struct.pack("<I", 0xFFFFFFFF)
+        data_pos = raw.find(b"data")
+        raw[data_pos + 4 : data_pos + 8] = struct.pack("<I", 0xFFFFFFFF)
+
+        fixed = normalize_wav(bytes(raw))
+        with wave.open(io.BytesIO(fixed), "rb") as wf:
+            self.assertEqual(wf.getnframes(), 800)
+            self.assertEqual(wf.getframerate(), 8000)
 
 
 if __name__ == "__main__":

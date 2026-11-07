@@ -15,6 +15,7 @@ Defaults target the Hinglish telephony pilot: Timbre v2.5 voice ``Poorvi``,
 from __future__ import annotations
 
 import os
+import struct
 from dataclasses import dataclass
 from typing import Any
 
@@ -121,11 +122,32 @@ class TimbreClient:
             )
 
         return TTSResult(
-            audio=response.content,
+            audio=normalize_wav(response.content) if fmt == "wav" else response.content,
             fmt=fmt,
             sample_rate=sample_rate,
             voice=voice,
         )
+
+
+def normalize_wav(audio: bytes) -> bytes:
+    """Patch streaming WAV headers whose RIFF/data sizes are ``0xFFFFFFFF``.
+
+    Gnani Timbre returns a WAV with unknown-length markers; Python's ``wave``
+    module (and batch upload validation) needs real sizes.
+    """
+    if len(audio) < 12 or audio[:4] != b"RIFF" or audio[8:12] != b"WAVE":
+        return audio
+    data = bytearray(audio)
+    data[4:8] = struct.pack("<I", len(data) - 8)
+    pos = 12
+    while pos + 8 <= len(data):
+        chunk_id = bytes(data[pos : pos + 4])
+        size = struct.unpack("<I", data[pos + 4 : pos + 8])[0]
+        if chunk_id == b"data":
+            data[pos + 4 : pos + 8] = struct.pack("<I", len(data) - (pos + 8))
+            break
+        pos += 8 + size + (size & 1)
+    return bytes(data)
 
 
 def _error_message(response: httpx.Response) -> str:
