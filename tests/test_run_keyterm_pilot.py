@@ -11,6 +11,7 @@ from scripts.run_keyterm_pilot import ARM_NAMES, run_pilot
 CALL = "c00"
 TERMS = [f"term-{i:03d}" for i in range(600)]
 GLOSSARY = [{"canonical": term, "term_id": f"T{i}"} for i, term in enumerate(TERMS)]
+REFERENCE_TEXT = "reference text for the pilot"
 
 
 def _arms(budget=200):
@@ -88,6 +89,7 @@ def test_dry_run_writes_plan_and_never_builds_client(tmp_path, monkeypatch):
         raise AssertionError("dry run must not construct BatchClient")
 
     monkeypatch.setattr("lexiforge.api.client.BatchClient", explode)
+    monkeypatch.setattr("httpx.Client", explode)
     out_dir = tmp_path / "runs"
     seen = {}
 
@@ -118,8 +120,12 @@ def test_dry_run_writes_plan_and_never_builds_client(tmp_path, monkeypatch):
     assert result.arms["baseline"] == []
     assert all(len(result.arms[name]) == 200 for name in ARM_NAMES[1:])
     assert seen["budget"] == 200 and seen["seed"] == 7
+    # No transcript exists before the baseline job, so the dry-run plan is explicit
+    # that the selected arm is provisional rather than built from reference text.
+    assert seen["hypothesis"] == f"call {CALL}"
 
     plan = json.loads((out_dir / CALL / "plan.json").read_text(encoding="utf-8"))
+    assert plan["selection_source"] == "dry-run placeholder"
     assert plan["call_id"] == CALL
     assert plan["execute"] is False
     assert plan["format"] == "transcribe"
@@ -137,6 +143,7 @@ def test_execute_validates_before_each_create_and_runs_four_jobs(tmp_path):
         GLOSSARY,
         execute=True,
         client=client,
+        reference_text=REFERENCE_TEXT,
         validator=_recording_validator(log),
         arms_builder=lambda **kwargs: _arms(kwargs["budget"]),
         report_builder=_report_builder({}),
@@ -172,6 +179,7 @@ def test_execute_pins_format_and_language_across_arms(tmp_path):
         GLOSSARY,
         execute=True,
         client=client,
+        reference_text=REFERENCE_TEXT,
         validator=lambda config: dict(config),
         arms_builder=lambda **kwargs: _arms(kwargs["budget"]),
         report_builder=_report_builder({}),
@@ -207,6 +215,7 @@ def test_transcripts_handle_text_segments_and_detected_language(tmp_path):
         GLOSSARY,
         execute=True,
         client=client,
+        reference_text=REFERENCE_TEXT,
         validator=lambda config: dict(config),
         arms_builder=lambda **kwargs: _arms(kwargs["budget"]),
         report_builder=_report_builder({}),
@@ -232,6 +241,7 @@ def test_report_is_labelled_internal_only_and_written(tmp_path):
         GLOSSARY,
         execute=True,
         client=FakeClient(),
+        reference_text=REFERENCE_TEXT,
         validator=lambda config: dict(config),
         arms_builder=lambda **kwargs: _arms(kwargs["budget"]),
         report_builder=_report_builder(seen),
@@ -248,8 +258,99 @@ def test_report_is_labelled_internal_only_and_written(tmp_path):
     assert seen["prereg"]["arms"] == list(ARM_NAMES)
 
 
-def test_execute_without_client_or_key_raises(tmp_path, monkeypatch):
+def test_execute_builds_arms_from_baseline_transcript_and_script_call_type(tmp_path):
+    log = []
+    client = FakeClient(
+        log=log,
+        transcripts={"job-1": {"fid1": {"text": "baseline transcript from pass one"}}},
+    )
+    seen = {}
+
+    def arms_builder(**kwargs):
+        log.append(("arms", kwargs.get("hypothesis")))
+        seen.update(kwargs)
+        return _arms(kwargs["budget"])
+
+    run_pilot(
+        CALL,
+        _audio(tmp_path),
+        GLOSSARY,
+        execute=True,
+        client=client,
+        validator=lambda config: dict(config),
+        arms_builder=arms_builder,
+        report_builder=_report_builder({}),
+        renderer=lambda report: "report",
+        out_dir=tmp_path / "runs",
+    )
+
+    # The selector input is the baseline pass-1 transcript, and the call type
+    # comes from data/scripts/c00.json, never from a placeholder.
+    assert seen["hypothesis"] == "baseline transcript from pass one"
+    assert seen["call_type"] == "mandate_fail"
+
+    arms_at = next(index for index, entry in enumerate(log) if entry[0] == "arms")
+    assert [kind for kind, _ in log[:arms_at]].count("create") == 1
+    assert ("fetch", "job-1") in log[:arms_at]
+    assert "keyterms" not in client.created[0][0]
+    assert len(client.created) == 4
+
+
+def test_execute_scores_each_arm_before_real_report_builder(tmp_path):
+    scoring_glossary = [
+        {"term_id": "R1", "canonical": "Alpha", "origin": "real"},
+        {"term_id": "R2", "canonical": "Beta", "origin": "real"},
+        {"term_id": "F1", "canonical": "Zeta", "origin": "fictional"},
+    ]
+    client = FakeClient(
+        transcripts={
+            "job-1": {"fid": {"text": "Alpha Beta Zeta"}},
+            "job-2": {"fid": {"text": "Alpha Beta Zeta"}},
+            "job-3": {"fid": {"text": "nothing relevant"}},
+            "job-4": {"fid": {"text": "Alpha"}},
+        }
+    )
+
+    result = run_pilot(
+        CALL,
+        _audio(tmp_path),
+        scoring_glossary,
+        execute=True,
+        client=client,
+        reference_text="Alpha Beta Zeta",
+        validator=lambda config: dict(config),
+        arms_builder=lambda **kwargs: _arms(kwargs["budget"]),
+        out_dir=tmp_path / "runs",
+    )
+
+    # Real T9 builder and renderer: the old keyterm-list payload raised
+    # AttributeError instead of producing a report.
+    assert result.report_path is not None
+    assert result.report_path.exists()
+    markdown = result.report_markdown
+    assert "# Keyterm Health Report" in markdown
+    assert "baseline" in markdown
+    assert "selected-200" in markdown
+    assert "2/2 (100.0%)" in markdown
+    assert "internal" in markdown.lower()
+
+
+def test_execute_without_client_or_key_raises_without_http(tmp_path, monkeypatch):
     monkeypatch.delenv("GNANI_API_KEY", raising=False)
+
+    constructed = []
+
+    def explode_client(*args, **kwargs):
+        constructed.append("BatchClient")
+        raise AssertionError("BatchClient must not be constructed without a key")
+
+    def explode_http(*args, **kwargs):
+        constructed.append("httpx.Client")
+        raise AssertionError("no HTTP client may be constructed without a key")
+
+    monkeypatch.setattr("lexiforge.api.client.BatchClient", explode_client)
+    monkeypatch.setattr("httpx.Client", explode_http)
+
     with pytest.raises(ValueError, match="API key"):
         run_pilot(
             CALL,
@@ -257,10 +358,13 @@ def test_execute_without_client_or_key_raises(tmp_path, monkeypatch):
             GLOSSARY,
             execute=True,
             client=None,
+            reference_text=REFERENCE_TEXT,
             validator=lambda config: dict(config),
             arms_builder=lambda **kwargs: _arms(kwargs["budget"]),
             out_dir=tmp_path / "runs",
         )
+
+    assert constructed == []
 
 
 def test_missing_audio_fails_before_any_job(tmp_path):
@@ -272,6 +376,7 @@ def test_missing_audio_fails_before_any_job(tmp_path):
             GLOSSARY,
             execute=True,
             client=client,
+            reference_text=REFERENCE_TEXT,
             validator=lambda config: dict(config),
             arms_builder=lambda **kwargs: _arms(kwargs["budget"]),
             out_dir=tmp_path / "runs",
