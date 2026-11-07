@@ -7,6 +7,7 @@ filler to oracle-minimal while keeping all expected terms.
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import random
 from typing import Any, Dict, Iterable, List, Mapping, Set, Union
@@ -14,6 +15,16 @@ from typing import Any, Dict, Iterable, List, Mapping, Set, Union
 from lexiforge.canon import canon
 
 logger = logging.getLogger(__name__)
+
+
+def _stable_seed(*parts: Any) -> int:
+    """Process-stable integer seed derived from ``parts``.
+
+    Uses sha256 over a canonical encoding so results do not depend on
+    PYTHONHASHSEED or on the Python version's seeding rules.
+    """
+    encoded = "|".join(str(p) for p in parts).encode("utf-8")
+    return int.from_bytes(hashlib.sha256(encoded).digest()[:8], "big")
 
 
 # Plausible-but-wrong domain mappings as specified in design
@@ -47,11 +58,8 @@ _DEFAULT_MISMATCH = {
 
 def assign_mismatch_domain(call_type: str, seed: int) -> str:
     """Deterministic plausible-but-wrong domain mapping, logged."""
-    # Ensure seed is hashable/int-compatible
-    try:
-        rng = random.Random(seed)
-    except Exception:
-        rng = random.Random(hash((seed, call_type)))
+    # Ensure seed is stable across processes and hash seeds
+    rng = random.Random(_stable_seed(seed, call_type))
     ct = str(call_type).strip().lower() if call_type is not None else "default"
     
     # Deterministic mapping based on call_type and seed
@@ -252,10 +260,7 @@ def build_mismatched(
     
     # Deterministic resampling
     for attempt in range(50):
-        try:
-            rng = random.Random((seed + attempt, str(call_type)))
-        except Exception:
-            rng = random.Random(hash((seed + attempt, str(call_type))))
+        rng = random.Random(_stable_seed(seed + attempt, call_type))
         # Shuffle candidates
         pool = list(candidates)
         rng.shuffle(pool)
@@ -352,10 +357,7 @@ def build_dilution(
                 continue
             candidates.append(t)
     
-    try:
-        rng = random.Random((seed, str(call_type), "dilution"))
-    except Exception:
-        rng = random.Random(hash((seed, str(call_type), "dilution")))
+    rng = random.Random(_stable_seed(seed, call_type, "dilution"))
     pool = list(candidates)
     rng.shuffle(pool)
     
