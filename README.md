@@ -24,6 +24,8 @@ It does not show that a static list causes harm — that is reported separately.
 Design approved 2026-10-29. Deadline 2026-11-10.
 
 - Design: [`docs/design.md`](docs/design.md)
+- Keyterm Health POC: [`docs/keyterm-health-poc.md`](docs/keyterm-health-poc.md) (measurement-led, pre-registered, internal-only Phases 1-2 synthetic; no measured results claimed)
+- Pre-registration: [`docs/preregistration.md`](docs/preregistration.md)
 - Notes: [`docs/notes/`](docs/notes/)
 
 ### Implementation state
@@ -159,7 +161,7 @@ the dashboard process.
 ## Tests
 
 ```bash
-python -m pytest tests/ -q      # 326 tests
+python -m pytest tests/ -q      # 466 tests
 make test-cov                   # with coverage
 ```
 
@@ -206,7 +208,7 @@ data/                 committed glossary, core-200, assignment, scripts
 ## Checks
 
 ```bash
-python -m pytest tests/ -q     # 326 tests
+python -m pytest tests/ -q     # 466 tests
 ruff check lexiforge tests web scripts
 ```
 
