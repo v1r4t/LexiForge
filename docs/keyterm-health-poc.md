@@ -31,7 +31,7 @@ Pre-registered before any pass-2 data exists (see also [`docs/preregistration.md
 ## 3. Internal-only Phases 1–2 (synthetic)
 
 - **Phase 0 – Setup/validity (0 credits):** Gnani Timbre TTS client (fallback `edge-tts` if scope missing), scope check, **matcher gold set** (30 hand-labelled cases) targeting ≥0.98 span precision/recall before trusting scores, **glossary coverage check** (fraction of glossary appearing in scripts). Selector must choose from full glossary, not echo scripts.
-- **Phase 1 – One-call internal validation:** TTS `data/scripts/c00.json` (5 turns), concatenate, make telephony-like (8 kHz, G.711 μ-law, light noise), record processing chain. Run 4 Batch jobs (baseline, selected-200, mismatched-200, hard-negative-200), pin format/language, score with frozen matcher. Report labelled **internal harness validation – not for external distribution**. Log credits.
+- **Phase 1 – One-call internal validation:** TTS `data/scripts/c00.json` (5 turns), concatenate, make telephony-like (downsample to 8 kHz → add light noise → G.711 μ-law encode/decode, in that order), record processing chain. Run 4 Batch jobs (baseline, selected-200, mismatched-200, hard-negative-200), pin format/language, score with frozen matcher. Report labelled **internal harness validation – not for external distribution**. Log credits.
 - **Phase 2 – Four-call pilot (only if Phase 1 cheap):** `c00–c03`, 4 arms = 16 requests. Descriptive paired deltas only (no p-values). Recompute MDE from observed variance. Report labelled **internal only**.
 - **Synthetic disclosure:** When TTS is used, reports must include synthetic-audio and circularity disclosure (§6). Never publish Phase 1–2 as real-world results.
 
