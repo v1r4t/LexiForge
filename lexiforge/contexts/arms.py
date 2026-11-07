@@ -383,9 +383,16 @@ def _off_domain_mapping(
         name: terms for name, terms in mapping.items() if name not in excluded
     }
     if not allowed:
+        # The live baseline transcript can mention terms from every category,
+        # so a strictly off-domain arm may be impossible. Fall back to the
+        # full glossary (minus the call's own category when known) and rely on
+        # canonical term-level exclusion; the report records the weaker arm.
+        allowed = {name: terms for name, terms in mapping.items() if name != own}
+    if not allowed:
+        allowed = dict(mapping)
+    if not allowed:
         raise ValueError(
-            "cannot build an off-domain mismatched arm: every glossary "
-            "category holds an expected term or is the call's own category"
+            "cannot build a mismatched arm: the glossary has no usable terms"
         )
     if own is None and not expected_cats:
         allowed = _limit_to_budget(allowed, budget)

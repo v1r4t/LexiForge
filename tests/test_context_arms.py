@@ -293,6 +293,15 @@ def test_mismatched_unmapped_call_type_still_off_domain():
     assert len(drew) == BUDGET
 
 
+def test_mismatched_falls_back_when_every_category_has_expected():
+    glossary = _glossary()
+    expected = [terms[0] for terms in CATEGORY_TERMS.values() if terms]
+    arms = _arms(glossary=glossary, expected_terms=expected, budget=15)
+    drawn = {canon(term) for term in arms["mismatched-200"]}
+    assert len(arms["mismatched-200"]) == 15
+    assert drawn & {canon(term) for term in expected} == set()
+
+
 def test_explicit_category_adapter_is_used():
     glossary = _glossary()
     other = list(CATEGORY_TERMS["cards"]) + list(CATEGORY_TERMS["loans"])
