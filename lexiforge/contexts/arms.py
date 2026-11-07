@@ -49,6 +49,48 @@ _ID_KEYS = ("term_id", "id", "termId")
 _SURFACE_KEYS = ("canonical", "term", "name")
 _ALIAS_KEYS = ("scoring_aliases", "aliases", "alias", "variants", "surfaces")
 
+# Script ``call_type`` values are not glossary categories. Without this map
+# ``build_mismatched`` sees a key that matches no category and treats every
+# category as off-domain, including the expected terms' own domain.
+_FLAT_CATEGORY = "__glossary__"
+
+_CALL_TYPE_CATEGORIES = {
+    "mandate": "mandates_autopay",
+    "mandate_fail": "mandates_autopay",
+    "kyc": "identity_kyc",
+    "kyc_reverify": "identity_kyc",
+    "kyc_update": "identity_kyc",
+    "payment": "payments",
+    "payments": "payments",
+    "upi": "payments",
+    "upi_dispute": "payments",
+    "upi_failed": "payments",
+    "card": "cards",
+    "cards": "cards",
+    "card_block": "cards",
+    "card_limit": "cards",
+    "collections": "collections_recovery",
+    "collections_settlement": "collections_recovery",
+    "loan": "loans_credit",
+    "loans": "loans_credit",
+    "loan_emi": "loans_credit",
+    "loan_foreclosure": "loans_credit",
+    "branch_visit": "statements_servicing",
+    "chequebook": "statements_servicing",
+    "netbanking_login": "statements_servicing",
+    "statements": "statements_servicing",
+    "fraud": "fraud_disputes",
+    "fraud_dispute": "fraud_disputes",
+    "insurance": "insurance",
+    "insurance_claim": "insurance",
+    "forex": "forex_trade",
+    "forex_nri": "forex_trade",
+    "transfer": "transfers",
+    "transfers": "transfers",
+    "deposits": "deposits_savings",
+    "fd_rates": "deposits_savings",
+}
+
 
 @dataclass(frozen=True)
 class _GlossaryIndex:
@@ -267,8 +309,87 @@ def _category_mapping(
     if not cleaned:
         # build_mismatched expects a domain-keyed mapping; a flat scan can
         # raise on ambiguous inputs, so always hand it one explicit domain.
-        cleaned = {"__glossary__": list(index.pool)}
+        cleaned = {_FLAT_CATEGORY: list(index.pool)}
     return cleaned
+
+
+def _normalise_call_type(value: str) -> str:
+    return "_".join(value.strip().lower().replace("-", " ").split())
+
+
+def _call_type_category(
+    call_type: str, categories: Mapping[str, list[str]]
+) -> Optional[str]:
+    """Resolve a script call type to the glossary category it belongs to."""
+    key = _normalise_call_type(call_type)
+    for name in categories:
+        if _normalise_call_type(name) == key:
+            return name
+    mapped = _CALL_TYPE_CATEGORIES.get(key)
+    if mapped in categories:
+        return mapped
+    return None
+
+
+def _expected_categories(
+    mapping: Mapping[str, list[str]], expected: Iterable[str]
+) -> set[str]:
+    """Every category that contains at least one expected term."""
+    expected_keys = {canon(term) for term in expected if canon(term)}
+    return {
+        name
+        for name, terms in mapping.items()
+        if any(canon(term) in expected_keys for term in terms)
+    }
+
+
+def _limit_to_budget(
+    mapping: Mapping[str, list[str]], budget: int
+) -> dict[str, list[str]]:
+    """Keep only enough categories to fill ``budget`` unique terms."""
+    if budget <= 0:
+        return {}
+    chosen: dict[str, list[str]] = {}
+    seen: set[str] = set()
+    for name in sorted(mapping):
+        chosen[name] = mapping[name]
+        seen.update(canon(term) for term in mapping[name] if canon(term))
+        if len(seen) >= budget:
+            break
+    return chosen
+
+
+def _off_domain_mapping(
+    mapping: Mapping[str, list[str]],
+    call_type: str,
+    expected: Iterable[str],
+    *,
+    budget: int,
+) -> dict[str, list[str]]:
+    """Drop the call's own category and every category holding expected terms.
+
+    When the call type has no mapping and the expected terms belong to no
+    category, there is no domain signal at all; take only as many categories as
+    the budget needs instead of treating the whole glossary as off-domain.
+    """
+    own = _call_type_category(call_type, mapping)
+    expected_cats = _expected_categories(mapping, expected)
+    if set(mapping) == {_FLAT_CATEGORY}:
+        # A glossary without categories has no domain structure to exclude;
+        # expected surfaces are still removed canonically when drawing.
+        expected_cats = set()
+    excluded = expected_cats | ({own} if own is not None else set())
+    allowed = {
+        name: terms for name, terms in mapping.items() if name not in excluded
+    }
+    if not allowed:
+        raise ValueError(
+            "cannot build an off-domain mismatched arm: every glossary "
+            "category holds an expected term or is the call's own category"
+        )
+    if own is None and not expected_cats:
+        allowed = _limit_to_budget(allowed, budget)
+    return allowed
 
 
 def _build_mismatched(
@@ -280,14 +401,23 @@ def _build_mismatched(
     budget: int,
     by_category: Optional[Mapping[str, Iterable[str]]],
 ) -> list[str]:
+    if budget == 0:
+        return []
     mapping = _category_mapping(index, by_category)
+    off_domain = _off_domain_mapping(mapping, call_type, expected, budget=budget)
+    own = _call_type_category(call_type, off_domain)
+    # ``own`` was already removed, so this sentinel never suppresses a category.
+    draw_key = own if own is not None else "__off_domain__"
     drawn = build_mismatched(
-        mapping, call_type, expected, seed=seed, budget=budget
+        off_domain, draw_key, expected, seed=seed, budget=budget
+    )
+    pool = _unique_sorted(
+        term for terms in off_domain.values() for term in terms
     )
     return _pad(
         drawn,
         budget,
-        index.pool,
+        pool,
         exclude={canon(term) for term in expected},
     )
 

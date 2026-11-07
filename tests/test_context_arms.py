@@ -232,6 +232,67 @@ def test_mismatched_draws_from_other_categories():
     assert len(drew) == BUDGET
 
 
+def test_mismatched_real_script_call_type_is_off_domain():
+    """A real script call type must map to a glossary category.
+
+    ``data/scripts/c00.json`` uses ``mandate_fail``, which is not a glossary
+    category. Passing it through unchanged made every category eligible and
+    let the arm contain terms from the expected terms' own domains.
+    """
+    glossary = json.loads(
+        (ROOT / "data" / "glossary.json").read_text(encoding="utf-8")
+    )
+    script = json.loads(
+        (ROOT / "data" / "scripts" / "c00.json").read_text(encoding="utf-8")
+    )
+    expected_ids = list(script["expected_real"]) + list(
+        script["expected_fictional"]
+    )
+    by_id = {entry["term_id"]: entry for entry in glossary}
+    expected = {
+        canon(by_id[tid]["canonical"]) if tid in by_id else canon(tid)
+        for tid in expected_ids
+    }
+    expected_categories = {
+        by_id[tid]["category"] for tid in expected_ids if tid in by_id
+    }
+    expected_category_terms = {
+        canon(entry["canonical"])
+        for entry in glossary
+        if entry["category"] in expected_categories
+    }
+    mapped_category_terms = {
+        canon(entry["canonical"])
+        for entry in glossary
+        if entry["category"] == "mandates_autopay"
+    }
+
+    arms = build_arms(
+        " ".join(turn["text"] for turn in script["turns"]),
+        glossary,
+        script["call_type"],
+        budget=200,
+        seed=0,
+        expected_terms=expected_ids,
+        hard_negative_builder=_builder()[0],
+    )
+    drawn = {canon(term) for term in arms["mismatched-200"]}
+
+    assert len(arms["mismatched-200"]) == 200
+    assert drawn & expected == set()
+    assert drawn & expected_category_terms == set()
+    assert drawn & mapped_category_terms == set()
+
+
+def test_mismatched_unmapped_call_type_still_off_domain():
+    glossary = _glossary()
+    payments = {canon(term) for term in CATEGORY_TERMS["payments"]}
+    arms = _arms(glossary=glossary, call_type="general")
+    drew = {canon(term) for term in arms["mismatched-200"]}
+    assert drew & payments == set()
+    assert len(drew) == BUDGET
+
+
 def test_explicit_category_adapter_is_used():
     glossary = _glossary()
     other = list(CATEGORY_TERMS["cards"]) + list(CATEGORY_TERMS["loans"])
