@@ -39,6 +39,7 @@ class PilotResult:
     report_markdown: str = ""
     report_path: Path | None = None
     credits: float = 0.0
+    scored_arms: list[dict] = field(default_factory=list)
 
 
 def _lazy_import_arm_builder() -> Callable[..., dict[str, list[str]]] | None:
@@ -429,6 +430,7 @@ def run_pilot(
     language_code="hi-IN,en-IN",
     poll_timeout=1800,
     reference_text=None,
+    script=None,
     arms_builder=None,
     validator=None,
     report_builder=None,
@@ -438,7 +440,7 @@ def run_pilot(
     run_dir = Path(out_dir) / str(call)
     run_dir.mkdir(parents=True, exist_ok=True)
 
-    script = _load_script(call)
+    script = dict(script) if script is not None else _load_script(call)
     call_type = str(script.get("call_type") or "general")
 
     plan: dict[str, Any] = {
@@ -575,6 +577,7 @@ def run_pilot(
         report_markdown=report_markdown,
         report_path=report_path,
         credits=float(len(job_ids)),
+        scored_arms=scored_arms,
     )
 
 
