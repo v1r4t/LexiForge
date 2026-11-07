@@ -27,9 +27,35 @@ class TestMismatchDeterminism(unittest.TestCase):
             "forex": ["forex", "currency", "exchange"],
         }
         expected = ["NEFT", "KYC"]
-        m1 = build_mismatched(glossary, "upi", expected, seed=42, budget=10)
-        m2 = build_mismatched(glossary, "upi", expected, seed=42, budget=10)
+        # Pool holds exactly 6 off-domain terms; a larger budget must now fail
+        # instead of silently returning a short list.
+        m1 = build_mismatched(glossary, "upi", expected, seed=42, budget=6)
+        m2 = build_mismatched(glossary, "upi", expected, seed=42, budget=6)
         self.assertEqual(m1, m2)
+        self.assertEqual(len(m1), 6)
+
+
+class TestMismatchExactBudget(unittest.TestCase):
+    def test_fillable_request_returns_exactly_budget(self):
+        glossary = {
+            "upi": ["UPI", "VPA", "IMPS"],
+            "insurance": ["policy", "premium", "claim", "agent", "renewal"],
+            "forex": ["forex", "currency", "exchange"],
+        }
+        result = build_mismatched(glossary, "upi", ["NEFT"], seed=7, budget=8)
+        self.assertEqual(len(result), 8)
+
+    def test_unfillable_request_raises_value_error_with_counts(self):
+        glossary = {
+            "upi": ["UPI", "VPA"],
+            "insurance": ["policy", "premium"],
+        }
+        with self.assertRaises(ValueError) as ctx:
+            build_mismatched(glossary, "upi", ["NEFT"], seed=7, budget=5)
+        message = str(ctx.exception)
+        self.assertIn("mismatched", message)
+        self.assertIn("5", message)
+        self.assertIn("2", message)
 
 
 class TestMismatchZeroOverlap(unittest.TestCase):
@@ -57,6 +83,16 @@ class TestDilution(unittest.TestCase):
         result_canon = {canon(r) for r in result}
         for e in expected:
             self.assertIn(canon(e), result_canon)
+
+    def test_dilution_returns_exactly_budget(self):
+        glossary = {
+            "upi": ["policy", "premium"],
+            "insurance": ["NEFT", "KYC"],
+        }
+        result = build_dilution(
+            glossary, ["NEFT"], call_type="insurance", seed=5, budget=10
+        )
+        self.assertEqual(len(result), 10)
 
 
 class TestPhoneticOverlap(unittest.TestCase):

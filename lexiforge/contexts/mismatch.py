@@ -12,6 +12,7 @@ import random
 from typing import Any, Dict, Iterable, List, Mapping, Set, Union
 
 from lexiforge.canon import canon
+from lexiforge.contexts.build import assert_exact_budget
 
 logger = logging.getLogger(__name__)
 
@@ -306,6 +307,7 @@ def build_mismatched(
                 else:
                     # Check if there were candidates from other domains that all overlapped
                     raise AssertionError("Zero overlap assertion failed")
+            assert_exact_budget(result, budget, arm="mismatched")
             return result
     
     raise AssertionError("Failed to build mismatched context with zero overlap")
@@ -394,7 +396,9 @@ def build_dilution(
                 seen_final.add(tc)
             i += 1
     
-    return final[:budget]
+    final = final[:budget]
+    assert_exact_budget(final, budget, arm="dilution")
+    return final
 
 
 def phonetic_neighbour_overlap(terms: Union[Iterable[str], None], expected: Union[Iterable[str], None]) -> dict:

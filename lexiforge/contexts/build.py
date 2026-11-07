@@ -96,6 +96,21 @@ def assert_budget(keyterms: Optional[Iterable[str]]) -> int:
     return count
 
 
+def assert_exact_budget(items: Iterable[str], budget: int, *, arm: str) -> int:
+    """Require ``len(items) == budget`` for equal-budget contrast arms.
+
+    A short list silently turns an equal-budget contrast into a dose
+    comparison, so the mismatched and dilution arms must fail loudly instead.
+    """
+    count = len(list(items))
+    if count != budget:
+        raise ValueError(
+            f"{arm} arm must contain exactly {budget} terms; "
+            f"expected {budget}, got {count}"
+        )
+    return count
+
+
 def _check_topic(topic: str) -> str:
     if not isinstance(topic, str):
         raise TypeError(f"topic must be str, got {type(topic).__name__}")
