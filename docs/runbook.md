@@ -110,7 +110,7 @@ See [`docs/keyterm-health-poc.md`](keyterm-health-poc.md). All POC runs follow p
 
 ### Phases (internal-only for synthetic)
 - **Phase 0 (0 credits):** TTS client check (fallback to `edge-tts`), scope verification, matcher gold set, glossary coverage.
-- **Phase 1 (internal harness validation, not for external distribution):** TTS `data/scripts/c00.json` → telephony-like (8 kHz, G.711 μ-law, noise), record processing chain. 4 jobs (baseline, selected-200, mismatched-200, hard-negative-200). Log credits. Label synthetic/circularity.
+- **Phase 1 (internal harness validation, not for external distribution):** TTS `data/scripts/c00.json` → telephony-like (downsample to 8 kHz → add noise → G.711 μ-law encode/decode, in that order), record processing chain. 4 jobs (baseline, selected-200, mismatched-200, hard-negative-200). Log credits. Label synthetic/circularity.
 - **Phase 2 (internal only, if Phase 1 cheap):** `c00–c03`, 16 requests. Descriptive paired deltas only (no p-values). Recompute MDE. Label synthetic.
 - **Phase 3–4:** Service/productization only on pull per POC plan.
 

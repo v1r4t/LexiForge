@@ -1,6 +1,5 @@
 """Telephony audio processing pipeline."""
 
-import struct
 import wave
 from dataclasses import dataclass
 from typing import Tuple
@@ -8,8 +7,11 @@ from typing import Tuple
 import numpy as np
 from scipy import signal
 
-
-MU = 255.0
+# ITU-T G.711 mu-law constants, matching Sun's reference g711.c (and the
+# removed ``audioop.lin2ulaw``/``ulaw2lin`` implementation).
+_BIAS = 0x84
+_CLIP = 32635
+_EXP_LUT = tuple(i.bit_length() - 1 if i else 0 for i in range(256))
 
 
 @dataclass(frozen=True)
@@ -35,40 +37,39 @@ def resample_to_8k(samples, sample_rate):
 
 
 def mu_law_encode(samples) -> bytes:
-    """Encode samples to mu-law (G.711) bytes."""
+    """Encode float samples in [-1, 1] to ITU-T G.711 mu-law bytes.
+
+    Samples are converted to 16-bit linear PCM (``round(sample * 32768)``,
+    saturated to [-32768, 32767]) and then encoded with the standard
+    sign/exponent/mantissa algorithm used by Sun's ``g711.c`` and the removed
+    ``audioop.lin2ulaw``, so the output interoperates with real mu-law
+    decoders.
+    """
     samples = np.asarray(samples, dtype=np.float32)
     if samples.ndim > 1:
         samples = samples.flatten()
-    # Clip to [-1, 1]
-    samples = np.clip(samples, -1.0, 1.0)
-    # Apply mu-law compression
-    sign = np.sign(samples)
-    sign[sign == 0] = 1  # handle zero
-    magnitude = np.abs(samples)
-    compressed = np.sign(sign) * np.log1p(MU * magnitude) / np.log1p(MU)
-    # Scale to 8-bit unsigned
-    # Convert to 0-255 range
-    ulaw = ((compressed + 1.0) / 2.0 * 255.0).astype(np.float32)
-    ulaw = np.clip(ulaw, 0, 255).astype(np.uint8)
-    # Invert all bits as per standard mu-law
-    ulaw = (~ulaw).astype(np.uint8)
-    return ulaw.tobytes()
+    pcm = np.rint(np.clip(samples, -1.0, 1.0) * 32768.0)
+    pcm = np.clip(pcm, -32768, 32767).astype(np.int32)
+
+    sign = np.where(pcm < 0, 0x80, 0)
+    magnitude = np.minimum(np.where(pcm < 0, -pcm, pcm), _CLIP)
+    biased = magnitude + _BIAS
+    exponent = np.array(_EXP_LUT, dtype=np.int32)[(biased >> 7) & 0xFF]
+    mantissa = (biased >> (exponent + 3)) & 0x0F
+    ulaw = (~(sign | (exponent << 4) | mantissa)) & 0xFF
+    return ulaw.astype(np.uint8).tobytes()
 
 
 def mu_law_decode(payload: bytes) -> np.ndarray:
-    """Decode mu-law bytes to samples."""
-    ulaw = np.frombuffer(payload, dtype=np.uint8)
-    # Invert bits
-    ulaw = (~ulaw).astype(np.uint8)
-    # Convert to [-1, 1]
-    compressed = (ulaw.astype(np.float32) / 255.0) * 2.0 - 1.0
-    # Apply inverse mu-law
-    sign = np.sign(compressed)
-    sign[sign == 0] = 1
-    magnitude = np.abs(compressed)
-    # inverse: x = sign * (1/mu) * ((1+mu)^|y| - 1)
-    samples = sign * (1.0 / MU) * (np.power(1.0 + MU, magnitude) - 1.0)
-    return samples.astype(np.float32)
+    """Decode ITU-T G.711 mu-law bytes to float samples in [-1, 1]."""
+    ulaw = np.frombuffer(payload, dtype=np.uint8).astype(np.int32)
+    inverted = (~ulaw) & 0xFF
+    sign = inverted & 0x80
+    exponent = (inverted >> 4) & 0x07
+    mantissa = inverted & 0x0F
+    magnitude = (((mantissa << 3) + _BIAS) << exponent) - _BIAS
+    pcm = np.where(sign != 0, -magnitude, magnitude)
+    return (pcm.astype(np.float32) / 32768.0).astype(np.float32)
 
 
 def add_noise(samples, *, snr_db: float = 30.0, seed: int = 0) -> np.ndarray:
@@ -124,24 +125,27 @@ def write_wav(path, samples, sample_rate) -> None:
 
 
 def process_telephony(samples, sample_rate, *, noise_snr_db=30.0, seed=0) -> TelephonyAudio:
-    """Process audio through telephony pipeline."""
+    """Process audio through the documented telephony chain.
+
+    Order: resample to 8 kHz -> add white noise -> G.711 mu-law encode/decode.
+    """
     chain = []
     samples = np.asarray(samples, dtype=np.float32)
     if samples.ndim > 1:
         samples = samples.flatten()
     chain.append("input")
-    
+
     # Resample to 8k
     samples = resample_to_8k(samples, sample_rate)
     chain.append("resample_to_8k")
-    
+
     # Add noise
     samples = add_noise(samples, snr_db=noise_snr_db, seed=seed)
     chain.append("add_noise")
-    
+
     # Encode/decode with mu-law (common in telephony)
     encoded = mu_law_encode(samples)
     samples = mu_law_decode(encoded)
     chain.append("mu_law_encode_decode")
-    
+
     return TelephonyAudio(samples=samples.astype(np.float32), sample_rate=8000, chain=tuple(chain))
