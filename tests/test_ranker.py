@@ -5,7 +5,8 @@ Run with:  python -m pytest tests/test_ranker.py -q
 
 import unittest
 
-from lexiforge.select.ranker import is_hard_negative_pair, score_breakdown, select
+from lexiforge.select import ranker
+from lexiforge.select.ranker import SUBSTRING_BONUS, is_hard_negative_pair, score_breakdown, select
 
 
 def _glossary():
@@ -71,6 +72,38 @@ class TestHardNegative(unittest.TestCase):
         # Without the declared pair the phonetic neighbour also scores —
         # the veto, not the lexicon, is what excludes it above.
         self.assertIn("PhonPe", res)
+
+
+class TestSubstringBonusTokenBounds(unittest.TestCase):
+    """The 0.35 bonus must respect token boundaries, not raw substrings."""
+
+    def test_alias_does_not_fire_inside_larger_token(self):
+        g = [{"id": "ID", "aliases": ["id"]}]
+        comp = score_breakdown("vidhi", g, "upi")
+        self.assertLess(comp["ID"]["lex"], SUBSTRING_BONUS)
+
+    def test_numeric_alias_does_not_fire_inside_larger_number(self):
+        g = [{"id": "TWENTY", "aliases": ["20"]}]
+        comp = score_breakdown("2024", g, "upi")
+        self.assertLess(comp["TWENTY"]["lex"], SUBSTRING_BONUS)
+
+    def test_alias_fires_on_exact_token(self):
+        g = [{"id": "UPI", "aliases": ["upi"]}]
+        comp = score_breakdown("upi payment", g, "upi")
+        self.assertGreater(comp["UPI"]["lex"], 0.9)
+
+    def test_multiword_alias_matches_only_as_whole_phrase(self):
+        hit = ranker._alias_hit
+        self.assertTrue(hit("e mandate", "e mandate kar do", {"e", "mandate", "kar", "do"}))
+        self.assertTrue(hit("e mandate", "e mandate", {"e", "mandate"}))
+        self.assertFalse(hit("e mandate", "te mandate", {"te", "mandate"}))
+        self.assertFalse(hit("e mandate", "e mandated", {"e", "mandated"}))
+
+    def test_single_token_alias_requires_exact_token(self):
+        hit = ranker._alias_hit
+        self.assertTrue(hit("upi", "upi payment", {"upi", "payment"}))
+        self.assertFalse(hit("id", "vidhi", {"vidhi"}))
+        self.assertFalse(hit("20", "2024", {"2024"}))
 
 
 class TestDeterminism(unittest.TestCase):
