@@ -12,6 +12,7 @@ from lexiforge.contexts.build import (
     TOPIC_MIN,
     ContextBudgetError,
     assert_budget,
+    assert_exact_budget,
     build_config,
     canonicalise_terms,
     context_hash,
@@ -40,6 +41,28 @@ def test_budget_boundary_200_ok():
     terms = [f"term{i}" for i in range(200)]
     cfg = build_config(keyterms=terms)
     assert len(cfg["keyterms"]) == 200
+
+
+def test_assert_exact_budget_accepts_exact():
+    assert assert_exact_budget(["a", "b"], 2, arm="mismatched") == 2
+
+
+def test_assert_exact_budget_rejects_short_with_counts():
+    with pytest.raises(ValueError) as exc:
+        assert_exact_budget(["a"], 2, arm="mismatched")
+    message = str(exc.value)
+    assert "mismatched" in message
+    assert "expected 2" in message
+    assert "got 1" in message
+
+
+def test_assert_exact_budget_rejects_over_with_counts():
+    with pytest.raises(ValueError) as exc:
+        assert_exact_budget(["a", "b", "c"], 2, arm="dilution")
+    message = str(exc.value)
+    assert "dilution" in message
+    assert "expected 2" in message
+    assert "got 3" in message
 
 
 def test_duplicates_collapse_before_cap():
