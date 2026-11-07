@@ -74,6 +74,15 @@ def test_empty_glossary_raises():
         VocabularyOptimizer().optimize_context("text", glossary=[], max_terms=5)
 
 
+def test_optimizer_output_records_canon_version():
+    from lexiforge.canon import CANON_VERSION
+
+    result = VocabularyOptimizer().optimize_context(
+        HYPOTHESIS, glossary=RICH_GLOSSARY, max_terms=3
+    )
+    assert result["canon_version"] == CANON_VERSION
+
+
 def test_budget_must_be_positive():
     with pytest.raises(ValueError, match="max_terms"):
         VocabularyOptimizer().optimize_context(HYPOTHESIS, glossary=GLOSSARY, max_terms=0)

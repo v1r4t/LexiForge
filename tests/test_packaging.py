@@ -58,11 +58,11 @@ def test_installed_metadata_matches_pyproject() -> None:
     assert installed == _project_field("version")
 
 
-def test_wheel_filename_format_is_derivable() -> None:
-    name = re.sub(r"[-_.]+", "_", _project_field("name"))
+def test_project_metadata_is_pep440_consistent() -> None:
     version = _project_field("version")
+    name = _project_field("name")
 
-    # PEP 440 release segment; the built wheel is a pure-Python one.
+    # PEP 440 release segment; the distribution name is a valid project slug.
     assert re.fullmatch(r"\d+(?:\.\d+)+(?:[A-Za-z0-9.+!-]*)?", version)
-    filename = f"{name}-{version}-py3-none-any.whl"
-    assert re.fullmatch(r"[A-Za-z0-9_.]+-[A-Za-z0-9_.]+-py3-none-any\.whl", filename)
+    assert re.fullmatch(r"[a-z][a-z0-9-]*", name.lower())
+    assert name.lower() == "lexiforge"

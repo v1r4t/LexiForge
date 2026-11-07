@@ -192,6 +192,7 @@ def find_spans(text: str, glossary) -> list[dict]:
         alias_map = build_alias_map(glossary)
         if not alias_map:
             record.attributes["spans_found"] = 0
+            metrics.increment("matcher.spans_found", 0)
             return []
         max_n = max(len(key.split()) for key in alias_map)
         toks = _tokenize_with_spans(text)

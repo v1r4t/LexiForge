@@ -24,14 +24,16 @@ from lexiforge.contexts.mismatch import build_dilution, build_mismatched
 
 GLOSSARY = {
     "upi": ["UPI", "VPA", "IMPS", "RTGS", "BHIM"],
-    "insurance": [
+    # Set-valued domains: iteration order varies with PYTHONHASHSEED unless the
+    # builder normalises it.
+    "insurance": {
         "policy", "premium", "claim", "agent", "cover", "renewal",
         "rider", "deductible", "endowment", "annuity", "surrender", "nominee",
-    ],
-    "forex": [
+    },
+    "forex": {
         "currency", "exchange", "remittance", "nostro", "swift", "hedge",
         "forward", "spot", "conversion", "corridor", "settlement", "margin",
-    ],
+    },
 }
 EXPECTED = ["NEFT", "KYC"]
 

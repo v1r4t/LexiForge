@@ -67,6 +67,8 @@ Run on the scoring machine before the first scored run (Nov 8). Each item must p
 - [ ] **Provenance:** every scored output records `CANON_VERSION` and the matcher identity used to score it.
 - [ ] **Canonicaliser/tokenizer parity:** the parity test passes on the frozen fixture set.
 
+> Seeded contexts produced before this fix are **not** reproducible: the old fallback was salted by `PYTHONHASHSEED`, and unknown call types may map to a different alternative domain than before. Regenerate those contexts and record the new hash manifest before scoring.
+
 ## 6. Hard cutoffs
 
 - Last recording: **Nov 4 EOD**.
