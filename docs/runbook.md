@@ -58,7 +58,16 @@ Reported tripwires (not gated, record values):
 - T2: pilot directional deltas; abort analysis if H1 or H2 sign inverted.
 - H2 floor rule: zero mismatched-arm insertions in c01–c04 → H2 reported as **untested at this sensitivity**; false-insertion claim carried descriptively by graded close-pair set only.
 
-## 5. Hard cutoffs
+## 5. Measurement integrity — verify before scoring
+
+Run on the scoring machine before the first scored run (Nov 8). Each item must pass; a failure blocks scoring rather than being noted downstream.
+
+- [ ] **Cross-process seeding:** regenerate one seeded context (mismatched, random, padded or dilution) in a second process under a different `PYTHONHASHSEED`; the output must be byte-identical.
+- [ ] **Exact budgets:** mismatched-200, oracle-200, adaptive-200, dilution and near-miss each carry exactly their stated term count. Selector underfill is reported separately and never counted as an equal-budget arm.
+- [ ] **Provenance:** every scored output records `CANON_VERSION` and the matcher identity used to score it.
+- [ ] **Canonicaliser/tokenizer parity:** the parity test passes on the frozen fixture set.
+
+## 6. Hard cutoffs
 
 - Last recording: **Nov 4 EOD**.
 - Last reference: **Nov 5** (G2: references complete + matcher frozen).
@@ -66,7 +75,7 @@ Reported tripwires (not gated, record values):
 - Last analysis change: **Nov 8 EOD** (G3: score + adjudicate + analyse).
 - Demo freeze: **Nov 9 16:00**. Morning Nov 9 is the only buffer. Submit Nov 10.
 
-## 6. Scope-cut order
+## 7. Scope-cut order
 
 Cut strictly in this order; never skip ahead:
 
@@ -74,7 +83,7 @@ Cut strictly in this order; never skip ahead:
 
 Core confirmatory set (baseline, mismatched-200, oracle-200, oracle-minimal) + static-head-200 + random-200 + adaptive-200 are never cut. If Nov 2 slips, near-miss drops first, then dilution.
 
-## 7. If it is all going wrong
+## 8. If it is all going wrong
 
 - H1+H2 both clean → report both, Holm 0.025/0.05, positive control (`oracle-200 − mismatched-200`, large) validates pipeline.
 - H2 holds, H1 inconclusive (recall null at ~90 occurrences) → claim H2 alone; H1 is inconclusive, not safety.
