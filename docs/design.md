@@ -76,6 +76,16 @@ Neither hypothesis says a fixed list causes harm. `static-200` vs `baseline` is 
 
 **Metrics:** real-term recall (H1, primary stratum), insertions per utterance (H2), fictional-term recall (benefit stratum, control side), false insertions per 100 unspoken in-list exposures (guardrail), raw WER (guardrail; folded WER demoted to appendix), selector coverage and retrieval-at-200 (mechanism), decoder-ignore rate — terms selected into context yet still missed.
 
+### Measurement integrity invariants
+
+These are properties the harness must uphold before any arm is scored. They are stated as invariants, not as descriptions of the current implementation.
+
+- **Process-stable seeding.** Every seeded context — mismatched, random, padded, dilution — is generated from an explicit seed and a fixed order that must not depend on `PYTHONHASHSEED`, set iteration order, or filesystem ordering. Regenerating the same call in a second process must produce byte-identical context JSON.
+- **Exact equal-budget arms.** Every arm compared at budget *k* carries exactly *k* entries — mismatched-200, oracle-200, adaptive-200, dilution and near-miss included. A short arm is a different experiment and is never compared as if it were equal-budget; the selector's natural underfill is reported separately, as §2 requires.
+- **Stamped provenance.** Each scored output records the canonicaliser version (`CANON_VERSION`) and the matcher identity used to score it. A recall figure without that stamp is not reportable.
+- **Canonicaliser/tokenizer parity.** Reference-span tokenization and glossary matching share one canonicalisation path; a parity test over a fixed fixture set must fail if the two diverge.
+
+
 ## 6. Analysis
 
 Unit is the (utterance, term) pair, clustered by call. Replicates collapse by arithmetic mean **at item level first**, then the call-clustered statistic is computed — never collapse across calls.

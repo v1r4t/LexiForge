@@ -168,6 +168,7 @@ def meta() -> Dict[str, Any]:
     return {
         "data_source": _CONFIG.get("data_source"),
         "is_sample": bool(_CONFIG.get("is_sample", False)),
+        "canon_version": _CONFIG.get("canon_version"),
         "note": _CONFIG.get("note", ""),
         "mode": os.environ.get("DEMO_MODE", "precomputed").lower(),
         "conditions": _conditions(),

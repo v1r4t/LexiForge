@@ -15,6 +15,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional, Sequence
 
+from lexiforge.canon import CANON_VERSION
 from lexiforge.select.ranker import score_breakdown, select
 
 __all__ = [
@@ -37,6 +38,7 @@ class OptimizationResult:
 
     def as_dict(self) -> Dict[str, Any]:
         return {
+            "canon_version": CANON_VERSION,
             "selected": self.selected,
             "left_out": self.left_out,
             "budget": self.budget,

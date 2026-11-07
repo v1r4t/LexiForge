@@ -1,6 +1,7 @@
 {
   "source": "illustrative_sample",
   "is_sample": true,
+  "canon_version": "matcher-v1.0",
   "note": "Numbers below are hand-written to exercise the dashboard. They are not measured results.",
   "contrasts": [
     {

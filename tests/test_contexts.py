@@ -6,11 +6,13 @@ import itertools
 
 import pytest
 
+from lexiforge.canon import CANON_VERSION
 from lexiforge.contexts.build import (
     TOPIC_MAX,
     TOPIC_MIN,
     ContextBudgetError,
     assert_budget,
+    assert_exact_budget,
     build_config,
     canonicalise_terms,
     context_hash,
@@ -39,6 +41,28 @@ def test_budget_boundary_200_ok():
     terms = [f"term{i}" for i in range(200)]
     cfg = build_config(keyterms=terms)
     assert len(cfg["keyterms"]) == 200
+
+
+def test_assert_exact_budget_accepts_exact():
+    assert assert_exact_budget(["a", "b"], 2, arm="mismatched") == 2
+
+
+def test_assert_exact_budget_rejects_short_with_counts():
+    with pytest.raises(ValueError) as exc:
+        assert_exact_budget(["a"], 2, arm="mismatched")
+    message = str(exc.value)
+    assert "mismatched" in message
+    assert "expected 2" in message
+    assert "got 1" in message
+
+
+def test_assert_exact_budget_rejects_over_with_counts():
+    with pytest.raises(ValueError) as exc:
+        assert_exact_budget(["a", "b", "c"], 2, arm="dilution")
+    message = str(exc.value)
+    assert "dilution" in message
+    assert "expected 2" in message
+    assert "got 3" in message
 
 
 def test_duplicates_collapse_before_cap():
@@ -106,14 +130,30 @@ def test_combo_rejection():
 
 
 def test_allowed_combos():
-    assert build_config() == {}
-    assert set(build_config(keyterms=["upi"])) == {"keyterms"}
-    assert set(build_config(topic=GOOD_TOPIC)) == {"topic"}
+    assert build_config() == {"canon_version": CANON_VERSION}
+    assert set(build_config(keyterms=["upi"])) == {"keyterms", "canon_version"}
+    assert set(build_config(topic=GOOD_TOPIC)) == {"topic", "canon_version"}
     assert set(build_config(topic=GOOD_TOPIC, keyterms=["upi"])) == {
         "topic",
         "keyterms",
+        "canon_version",
     }
-    assert set(build_config(speaker_names=["Asha"])) == {"speaker_names"}
+    assert set(build_config(speaker_names=["Asha"])) == {
+        "speaker_names",
+        "canon_version",
+    }
+
+
+def test_build_config_stamps_canon_version():
+    contexts = [
+        build_config(),
+        build_config(keyterms=["upi"]),
+        build_config(topic=GOOD_TOPIC),
+        build_config(topic=GOOD_TOPIC, keyterms=["upi"]),
+        build_config(speaker_names=["Asha"]),
+    ]
+    for cfg in contexts:
+        assert cfg["canon_version"] == CANON_VERSION
 
 
 def test_derive_topic_refuses_reference_key():

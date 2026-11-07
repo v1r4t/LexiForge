@@ -6,8 +6,9 @@ Score: ``S = 0.55*Lex + 0.25*Phon + 0.20*Prior``.
 
 - Lex: max over aliases of
   ``0.7 * char-trigram cosine + 0.3 * normalised BM25-style overlap``,
-  plus 0.35 if a canonicalised alias is a substring of the canonicalised
-  hypothesis (capped at 1.0).
+  plus 0.35 if a canonicalised alias matches the canonicalised hypothesis on
+  token boundaries (a single token or a whole multi-token phrase), capped at
+  1.0.
 - Phon: max over aliases and 1-3 token windows of ``skeleton_similarity``,
   vetoed to 0 for declared hard-negative pairs.
 - Prior: Laplace-smoothed call_type prior, normalised per call
@@ -165,26 +166,23 @@ def skeleton_similarity(a: str, b: str) -> float:
     return _skeleton_similarity(a, b)
 
 
-# Registry backing the two-argument is_hard_negative_pair contract; refreshed
-# on every select()/score_breakdown() call from the glossary declarations.
-_DECLARED: set[frozenset] = set()
-
-
 def is_hard_negative_pair(a: str, b: str, declared=None) -> bool:
-    """True if ``a``/``b`` are a declared hard-negative pair."""
+    """True if ``a``/``b`` are a declared hard-negative pair.
+
+    ``declared`` is an explicit, call-local pool of ``frozenset`` pairs. When
+    omitted, no process-global registry is consulted; only the external
+    phonetic helper is used.
+    """
     if a == b:
         return False
-    pool = _DECLARED if declared is None else declared
-    try:
-        if frozenset((a, b)) in pool:
-            return True
-    except TypeError:
-        pass
-    if _ext_is_hard_negative_pair is not None:
+    if declared is not None:
         try:
-            return bool(_ext_is_hard_negative_pair(a, b))
-        except Exception:
-            return False
+            if frozenset((a, b)) in declared:
+                return True
+        except TypeError:
+            pass
+    if _ext_is_hard_negative_pair is not None:
+        return bool(_ext_is_hard_negative_pair(a, b))
     return False
 
 
@@ -359,6 +357,22 @@ def _cosine(a: Counter, b: Counter) -> float:
     return dot / (na * nb)
 
 
+def _alias_hit(alias_canon: str, hyp_canon: str, hyp_toks: set[str]) -> bool:
+    """True when a canonicalised alias matches the hypothesis on token bounds.
+
+    A single-token alias must be one of the hypothesis tokens; a multi-token
+    alias must appear as a whole phrase. Padding both sides with spaces keeps
+    matches from straddling token boundaries (``20`` inside ``2024``).
+    """
+    toks = alias_canon.split()
+    if not toks:
+        return False
+    if len(toks) == 1:
+        return toks[0] in hyp_toks
+    phrase = " ".join(toks)
+    return f" {phrase} " in f" {hyp_canon} "
+
+
 def _lexical(alias_canon: str, hyp_canon: str, hyp_toks: set[str], idf: dict[str, float]) -> float:
     if not alias_canon or not hyp_canon:
         return 0.0
@@ -442,13 +456,14 @@ def score_breakdown(hypothesis, glossary, call_type, priors=None) -> dict[str, d
     total = sum(counts.values())
     v = len(order)
 
-    # Declared hard-negative pairs (symmetric closure over known ids).
-    global _DECLARED
-    _DECLARED = set()
+    # Declared hard-negative pairs (symmetric closure over known ids). Kept
+    # call-local so concurrent selections with different glossaries cannot
+    # leak declarations into one another.
+    declared: set[frozenset] = set()
     for tid in order:
         for p in pair_map.get(tid, []):
             if p in alias_map and p != tid:
-                _DECLARED.add(frozenset((tid, p)))
+                declared.add(frozenset((tid, p)))
 
     lex: dict[str, float] = {}
     substr: dict[str, bool] = {}
@@ -457,7 +472,7 @@ def score_breakdown(hypothesis, glossary, call_type, priors=None) -> dict[str, d
         hit = False
         for c in canon_alias[tid]:
             best = max(best, _lexical(c, hyp_canon, hyp_tok_set, idf))
-            if c and c in hyp_canon:
+            if _alias_hit(c, hyp_canon, hyp_tok_set):
                 hit = True
         if hit:
             best = min(1.0, best + SUBSTRING_BONUS)
@@ -467,7 +482,7 @@ def score_breakdown(hypothesis, glossary, call_type, priors=None) -> dict[str, d
     # Veto: the weaker member of a declared pair loses its phonetic component
     # once the stronger member is lexically anchored.
     vetoed: set[str] = set()
-    for pair in sorted(_DECLARED, key=lambda p: sorted(p)):
+    for pair in sorted(declared, key=lambda p: sorted(p)):
         a, b = sorted(pair)
         la, lb = lex[a], lex[b]
         if la >= ANCHOR_LEX and la >= lb and lb < la:

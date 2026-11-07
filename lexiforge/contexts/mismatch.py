@@ -7,13 +7,34 @@ filler to oracle-minimal while keeping all expected terms.
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import random
 from typing import Any, Dict, Iterable, List, Mapping, Set, Union
 
 from lexiforge.canon import canon
+from lexiforge.contexts.build import assert_exact_budget
 
 logger = logging.getLogger(__name__)
+
+
+def _stable_seed(*parts: Any) -> int:
+    """Process-stable integer seed derived from ``parts``.
+
+    Uses sha256 over a canonical encoding so results do not depend on
+    PYTHONHASHSEED or on the Python version's seeding rules.
+    """
+    encoded = "\x1f".join(
+        f"{len(part)}:{part}" for part in (str(p) for p in parts)
+    ).encode("utf-8")
+    return int.from_bytes(hashlib.sha256(encoded).digest()[:8], "big")
+
+
+def _ordered(items: Any) -> Any:
+    """Stable iteration order for set-like inputs; preserve list/tuple order."""
+    if isinstance(items, (set, frozenset)):
+        return sorted(items, key=str)
+    return items
 
 
 # Plausible-but-wrong domain mappings as specified in design
@@ -47,11 +68,8 @@ _DEFAULT_MISMATCH = {
 
 def assign_mismatch_domain(call_type: str, seed: int) -> str:
     """Deterministic plausible-but-wrong domain mapping, logged."""
-    # Ensure seed is hashable/int-compatible
-    try:
-        rng = random.Random(seed)
-    except Exception:
-        rng = random.Random(hash((seed, call_type)))
+    # Ensure seed is stable across processes and hash seeds
+    rng = random.Random(_stable_seed(seed, call_type))
     ct = str(call_type).strip().lower() if call_type is not None else "default"
     
     # Deterministic mapping based on call_type and seed
@@ -88,7 +106,7 @@ def _extract_terms_from_glossary(glossary: Any, domain: str = None) -> List[str]
                 if str(k).strip().lower() == str(domain_key).strip().lower():
                     v = glossary[k]
                     if isinstance(v, (list, set, tuple)):
-                        for item in v:
+                        for item in _ordered(v):
                             if isinstance(item, str):
                                 terms.append(item)
                             elif isinstance(item, Mapping):
@@ -116,9 +134,9 @@ def _extract_terms_from_glossary(glossary: Any, domain: str = None) -> List[str]
                     if v and all(isinstance(x, str) for x in v):
                         # If we need other domains, include; if we need specific domain maybe skip
                         if domain is None:
-                            terms.extend(list(v))
+                            terms.extend(_ordered(v))
                     elif v and all(isinstance(x, Mapping) for x in v):
-                        for item in v:
+                        for item in _ordered(v):
                             for key in ['term', 'text', 'value', 'canonical']:
                                 if key in item and isinstance(item[key], str):
                                     terms.append(item[key])
@@ -130,7 +148,7 @@ def _extract_terms_from_glossary(glossary: Any, domain: str = None) -> List[str]
                     terms.append(k)
         return terms
     elif isinstance(glossary, (list, set, tuple)):
-        for item in glossary:
+        for item in _ordered(glossary):
             if isinstance(item, str):
                 terms.append(item)
             elif isinstance(item, Mapping):
@@ -150,7 +168,7 @@ def _get_all_terms_by_domain(glossary: Any) -> Dict[str, List[str]]:
             kstr = str(k)
             if isinstance(v, (list, set, tuple)):
                 domain_terms = []
-                for item in v:
+                for item in _ordered(v):
                     if isinstance(item, str):
                         domain_terms.append(item)
                     elif isinstance(item, Mapping):
@@ -249,13 +267,19 @@ def build_mismatched(
         # Also check if after filtering candidates are empty and expected exist
         if not candidates:
             raise AssertionError("Zero overlap assertion failed")
-    
+
+    unique_candidate_keys = {
+        canon(t) for t in candidates if isinstance(t, str) and canon(t)
+    }
+    if len(unique_candidate_keys) < budget:
+        raise ValueError(
+            f"mismatched arm needs {budget} unique candidates; "
+            f"only {len(unique_candidate_keys)} available"
+        )
+
     # Deterministic resampling
     for attempt in range(50):
-        try:
-            rng = random.Random((seed + attempt, str(call_type)))
-        except Exception:
-            rng = random.Random(hash((seed + attempt, str(call_type))))
+        rng = random.Random(_stable_seed(seed + attempt, call_type))
         # Shuffle candidates
         pool = list(candidates)
         rng.shuffle(pool)
@@ -306,6 +330,7 @@ def build_mismatched(
                 else:
                     # Check if there were candidates from other domains that all overlapped
                     raise AssertionError("Zero overlap assertion failed")
+            assert_exact_budget(result, budget, arm="mismatched")
             return result
     
     raise AssertionError("Failed to build mismatched context with zero overlap")
@@ -352,10 +377,7 @@ def build_dilution(
                 continue
             candidates.append(t)
     
-    try:
-        rng = random.Random((seed, str(call_type), "dilution"))
-    except Exception:
-        rng = random.Random(hash((seed, str(call_type), "dilution")))
+    rng = random.Random(_stable_seed(seed, call_type, "dilution"))
     pool = list(candidates)
     rng.shuffle(pool)
     
@@ -394,7 +416,9 @@ def build_dilution(
                 seen_final.add(tc)
             i += 1
     
-    return final[:budget]
+    final = final[:budget]
+    assert_exact_budget(final, budget, arm="dilution")
+    return final
 
 
 def phonetic_neighbour_overlap(terms: Union[Iterable[str], None], expected: Union[Iterable[str], None]) -> dict:

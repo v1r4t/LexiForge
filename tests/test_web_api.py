@@ -15,6 +15,8 @@ from pathlib import Path
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from lexiforge.canon import CANON_VERSION
+
 
 def _get(app, path: str):
     async def _run():
@@ -31,7 +33,14 @@ def api(tmp_path: Path, monkeypatch):
     data_dir = tmp_path / "data"
     data_dir.mkdir()
     (data_dir / "demo_config.json").write_text(
-        json.dumps({"mode": "precomputed", "data_source": "measured"}), encoding="utf-8"
+        json.dumps(
+            {
+                "mode": "precomputed",
+                "data_source": "measured",
+                "canon_version": CANON_VERSION,
+            }
+        ),
+        encoding="utf-8",
     )
     (data_dir / "calls.json").write_text(
         json.dumps([{"call_id": "c01", "call_type": "upi_failed", "duration_s": 1.0, "has_audio": True}]),
@@ -60,6 +69,7 @@ def test_meta_reports_measured_source(api):
     payload = _get(api_module.app, "/meta").json()
     assert payload["is_sample"] is False
     assert payload["data_source"] == "measured"
+    assert payload["canon_version"] == CANON_VERSION
     assert payload["call_count"] == 1
     assert payload["conditions"] == ["baseline"]
 
@@ -126,6 +136,7 @@ def test_exported_sample_directory_is_marked_as_sample():
         )
     )
     assert config["data_source"] == "illustrative_sample"
+    assert config["canon_version"] == CANON_VERSION
 
     results = json.loads(
         (Path(api_module.__file__).parent / "data" / "sample" / "results.json").read_text(
@@ -133,4 +144,5 @@ def test_exported_sample_directory_is_marked_as_sample():
         )
     )
     assert results["is_sample"] is True
+    assert results["canon_version"] == CANON_VERSION
     assert all(contrast["verdict"] == "sample" for contrast in results["contrasts"])

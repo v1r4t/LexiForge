@@ -1,5 +1,6 @@
 {
   "mode": "precomputed",
   "data_source": "illustrative_sample",
+  "canon_version": "matcher-v1.0",
   "note": "Hand-written sample shaped like real output. NOT measured results. Run `lexiforge export-web` after scoring to replace this set."
 }
