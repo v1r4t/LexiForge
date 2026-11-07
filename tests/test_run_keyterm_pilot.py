@@ -65,6 +65,7 @@ def _recording_validator(log):
         log.append(("validate", len(config.get("keyterms") or [])))
         assert config["format"] == "transcribe"
         assert config["language_code"] == "hi-IN,en-IN"
+        assert config["model"] == "prisma-v3.0"
         assert len(config.get("keyterms") or []) <= 200
         return dict(config)
 
@@ -190,6 +191,7 @@ def test_execute_pins_format_and_language_across_arms(tmp_path):
     configs = [config for config, _ in client.created]
     assert [config["format"] for config in configs] == ["transcribe"] * 4
     assert [config["language_code"] for config in configs] == ["hi-IN,en-IN"] * 4
+    assert [config["model"] for config in configs] == ["prisma-v3.0"] * 4
     # baseline carries no keyterms; treated arms carry the exact budget.
     assert "keyterms" not in configs[0]
     assert all(len(config["keyterms"]) == 200 for config in configs[1:])

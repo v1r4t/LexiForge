@@ -153,7 +153,11 @@ def _batch_config(
     language_code: str,
     budget: int,
 ) -> dict[str, Any]:
-    config: dict[str, Any] = {"format": fmt, "language_code": language_code}
+    config: dict[str, Any] = {
+        "model": "prisma-v3.0",
+        "format": fmt,
+        "language_code": language_code,
+    }
     if arm != "baseline":
         config["keyterms"] = terms[:budget]
     return config
