@@ -7,10 +7,6 @@ import sys
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 
-import sys
-import unittest
-from concurrent.futures import ThreadPoolExecutor
-
 import pytest
 
 from lexiforge.select import ranker
