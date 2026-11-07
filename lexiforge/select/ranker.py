@@ -182,10 +182,7 @@ def is_hard_negative_pair(a: str, b: str, declared=None) -> bool:
         except TypeError:
             pass
     if _ext_is_hard_negative_pair is not None:
-        try:
-            return bool(_ext_is_hard_negative_pair(a, b))
-        except Exception:
-            return False
+        return bool(_ext_is_hard_negative_pair(a, b))
     return False
 
 

@@ -7,6 +7,12 @@ import sys
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 
+import sys
+import unittest
+from concurrent.futures import ThreadPoolExecutor
+
+import pytest
+
 from lexiforge.select import ranker
 from lexiforge.select.ranker import SUBSTRING_BONUS, is_hard_negative_pair, score_breakdown, select
 
@@ -135,6 +141,29 @@ class TestHardNegativeIsolation(unittest.TestCase):
                     self.assertEqual(fp.result(), base_plain)
         finally:
             sys.setswitchinterval(old_interval)
+
+
+def test_veto_helper_errors_propagate(monkeypatch):
+    """A broken phonetic helper must surface, not silently disable the veto."""
+
+    def _boom(a, b):
+        raise RuntimeError("phonetic helper exploded")
+
+    monkeypatch.setattr(ranker, "_ext_is_hard_negative_pair", _boom)
+    with pytest.raises(RuntimeError):
+        is_hard_negative_pair("a", "b")
+
+
+def test_veto_helper_normal_true_and_false_paths(monkeypatch):
+    # The real phonetic helper still answers correctly through ranker.
+    assert is_hard_negative_pair("PhonePe", "PhonPe") is True
+    assert is_hard_negative_pair("IFSC", "NACH") is False
+
+    monkeypatch.setattr(ranker, "_ext_is_hard_negative_pair", lambda a, b: True)
+    assert is_hard_negative_pair("a", "b") is True
+
+    monkeypatch.setattr(ranker, "_ext_is_hard_negative_pair", lambda a, b: False)
+    assert is_hard_negative_pair("a", "b") is False
 
 
 class TestDeterminism(unittest.TestCase):
