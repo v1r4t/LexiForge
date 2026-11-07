@@ -15,6 +15,9 @@ refs/
 transcripts/
 runs/
 
+# Local analysis output from graphify.
+graphify-out/
+
 .DS_Store
 Thumbs.db
 

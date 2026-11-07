@@ -14,6 +14,7 @@ Batch job. Budgets are enforced client-side before submission:
   only legal use of that field.
 """
 
+from lexiforge.contexts.arms import ARMS, build_arm_configs, build_arms
 from lexiforge.contexts.build import (
     MAX_KEYTERMS,
     TOPIC_MAX,
@@ -28,12 +29,15 @@ from lexiforge.contexts.build import (
 )
 
 __all__ = [
+    "ARMS",
     "MAX_KEYTERMS",
     "TOPIC_MAX",
     "TOPIC_MIN",
     "ContextBudgetError",
     "assert_budget",
     "assert_exact_budget",
+    "build_arm_configs",
+    "build_arms",
     "build_config",
     "canonicalise_terms",
     "context_hash",

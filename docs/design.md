@@ -148,6 +148,19 @@ The matrix is ~420 billed minutes — seven audio hours — at **~₹190**, unde
 
 ## 11. What is being built
 
-`lexiforge/` — harness, selectors, matcher, scoring, analysis. `data/` — glossary, core-200, assignment, scripts (committed). `audio/`, `refs/`, `transcripts/` — gitignored. `web/` — static three-screen gallery. `docs/` — this document, pre-registration, notes.
+`lexiforge/` — harness, selectors, matcher, scoring, analysis. `data/` — glossary, core-200, assignment, scripts (committed). `audio/`, `refs/`, `transcripts/` — gitignored. `web/` — static three-screen gallery. `docs/` — this document, pre-registration, notes, keyterm-health-poc.
 
 Stack: Python 3.11 with `httpx`, `pydantic`, `typer`, `rapidfuzz`, `numpy`/`scipy`; SQLite + JSONL; FastAPI; React + Vite + Tailwind; ffmpeg. No model training, no fine-tuning, no streaming.
+
+## 12. Keyterm Health POC (measurement-led)
+
+This project also supports a **measurement-led Keyterm Health POC** for Gnani Prisma v3.0. See [`docs/keyterm-health-poc.md`](keyterm-health-poc.md) for full details.
+
+- **Pre-registered** before data: arms, metrics, verdict rule, provenance frozen (see [`docs/preregistration.md`](preregistration.md)).
+- **Pinned config:** `format=transcribe` and `language_code=hi-IN,en-IN` across all arms; record `detected_language_code` per job/segment.
+- **Internal-only Phases 1–2:** use TTS/synthetic audio only for harness validation; never presented as real customer evidence.
+- **Arms:** `baseline` (none), `selected-200` (from glossary + pass-1 + metadata), `mismatched-200` (off-domain), `hard-negative-200` (phonetically close), `static-200` (optional).
+- **Metrics:** real-term recall, insertions/utterance, fictional/OOV recall, WER (guardrail), decoder-ignore rate (numerator/denominator).
+- **Non-inferiority verdict (primary):** recall CI lower bound ≥ −5pp and insertion CI upper bound ≤ +0.5; else `INCONCLUSIVE`/`FAIL` as specified. Lift is descriptive only.
+- **Claims register:** verified/inferred/unverified; **no measured results claimed** in design docs.
+- **Selection:** uses baseline pass-1 transcript + metadata, never reference script (circularity control).

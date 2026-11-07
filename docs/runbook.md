@@ -92,3 +92,31 @@ Core confirmatory set (baseline, mismatched-200, oracle-200, oracle-minimal) + s
 - Neither holds but selector/scoring mechanism works (coverage, retrieval-at-200, decoder-ignore rate sane) → mechanism-only report.
 - Pipeline broken (control small, plumbing fails) → harness-only report: ledger, dedup, 8-state machine, reproducible jobs.
 - Any outcome including a clean null → still a submission; a reproducible null is legitimate, differential-bias invalidation rule decides withdrawal.
+
+## 9. Keyterm Health POC (measurement-led)
+
+See [`docs/keyterm-health-poc.md`](keyterm-health-poc.md). All POC runs follow pre-registration ([`docs/preregistration.md`](preregistration.md)).
+
+### POC prerequisites
+- [ ] Matcher gold set ≥0.98 span precision/recall (Phase 0) — blocks trusting scores.
+- [ ] Glossary coverage reported (selector must choose from full glossary, not echo scripts).
+- [ ] Pre-registration frozen (arms/metrics/verdict/provenance). No changes after seeing data.
+
+### POC config (must pin)
+- [ ] `format=transcribe` and `language_code=hi-IN,en-IN` across all arms.
+- [ ] Record `detected_language_code` per job/segment.
+- [ ] One job per call/arm as appropriate; Batch preferred. `max_rps=1`. Score raw transcripts only.
+- [ ] Selection uses baseline pass-1 transcript + metadata (never reference script).
+
+### Phases (internal-only for synthetic)
+- **Phase 0 (0 credits):** TTS client check (fallback to `edge-tts`), scope verification, matcher gold set, glossary coverage.
+- **Phase 1 (internal harness validation, not for external distribution):** TTS `data/scripts/c00.json` → telephony-like (downsample to 8 kHz → add noise → G.711 μ-law encode/decode, in that order), record processing chain. 4 jobs (baseline, selected-200, mismatched-200, hard-negative-200). Log credits. Label synthetic/circularity.
+- **Phase 2 (internal only, if Phase 1 cheap):** `c00–c03`, 16 requests. Descriptive paired deltas only (no p-values). Recompute MDE. Label synthetic.
+- **Phase 3–4:** Service/productization only on pull per POC plan.
+
+### POC gates
+- [ ] Credits logged after every gate.
+- [ ] Synthetic-audio and circularity disclosure in report if TTS/internal used.
+- [ ] Verdict uses non-inferiority: recall CI lower bound ≥ −5pp and insertion CI upper bound ≤ +0.5; else `INCONCLUSIVE`/`FAIL`. Lift descriptive only.
+- [ ] Claims register included (verified/inferred/unverified). **No measured results claimed** if not yet run.
+- [ ] Decoder-ignore rate reported with numerator/denominator.
