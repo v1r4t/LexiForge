@@ -386,6 +386,39 @@ def test_missing_audio_fails_before_any_job(tmp_path):
     assert client.created == []
 
 
+def test_score_arms_emits_term_rows_and_wer():
+    from lexiforge.report.keyterm_health import build_report
+    from scripts.run_keyterm_pilot import _score_arms
+
+    glossary = [
+        {"term_id": "UPI", "aliases": ["UPI"], "origin": "real"},
+        {"term_id": "F1", "aliases": ["Zorbix"], "origin": "fictional"},
+    ]
+    rows_by_arm = {
+        name: {"f1": {"text": "mera UPI fail hua"}}
+        for name in ("baseline", "selected-200", "mismatched-200", "hard-negative-200")
+    }
+    scored = _score_arms(
+        call="c00",
+        rows_by_arm=rows_by_arm,
+        reference_text="mera UPI fail hua",
+        glossary=glossary,
+        script={"turns": [{"text": "mera UPI fail hua"}]},
+    )
+
+    assert all(arm["rows"] for arm in scored)
+    assert scored[0]["metrics"]["wer"] == 0.0
+    assert scored[0]["metrics"]["real_recall"] == {"num": 1, "den": 1}
+
+    report = build_report(
+        call_id="c00",
+        arms=scored,
+        provenance={},
+        prereg={"arms": [arm["name"] for arm in scored], "budget": 200},
+    )
+    assert report["term_level"]["real"]["recovered"] == 1
+
+
 def test_create_job_retries_clean_429(monkeypatch):
     from pathlib import Path
 

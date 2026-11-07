@@ -278,7 +278,8 @@ def _score_arms(
     glossary's ``origin`` field) yields recall numerator/denominator counts
     without re-implementing the matcher.
     """
-    from lexiforge.score.match import score_file
+    from lexiforge.score.match import score_file_detail
+    from lexiforge.score.metrics import term_recall, wer
 
     groups = _origin_glossary(glossary)
     turns = script.get("turns")
@@ -287,21 +288,25 @@ def _score_arms(
     scored: list[dict[str, Any]] = []
     for name in ARM_NAMES:
         hypothesis = _transcript_text(rows_by_arm.get(name) or {})
-        full = score_file(reference_text, hypothesis, glossary)
+        detail = score_file_detail(reference_text, hypothesis, glossary)
+        rows = [{"call_id": str(call), **row} for row in detail["rows"]]
         metrics: dict[str, Any] = {
             "insertions_per_utterance": {
-                "num": full["insertions"],
+                "num": detail["insertions"],
                 "den": n_utterances,
-            }
+            },
+            "wer": float(wer(reference_text, hypothesis)),
         }
-        for origin, subset in groups.items():
-            result = score_file(reference_text, hypothesis, subset)
+        for origin in groups:
+            recall = term_recall(rows, stratum=origin)
             metrics[f"{origin}_recall"] = {
-                "num": result["hits"],
-                "den": result["n_reference_occurrences"],
+                "num": recall["numerator"],
+                "den": recall["denominator"],
             }
-        row = {"call_id": str(call), **metrics}
-        scored.append({"name": name, "rows": [row], "metrics": metrics})
+        # One aggregate row per call keeps paired deltas computable while the
+        # term rows feed the appendix.
+        rows.append({"call_id": str(call), **metrics})
+        scored.append({"name": name, "rows": rows, "metrics": metrics})
     return scored
 
 

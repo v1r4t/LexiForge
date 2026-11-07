@@ -30,6 +30,7 @@ __all__ = [
     "find_spans",
     "load_glossary",
     "score_file",
+    "score_file_detail",
 ]
 
 
@@ -242,15 +243,10 @@ def _align_hyp_to_ref(
     return mapping
 
 
-def score_file(
+def _score_parts(
     reference_text: str, hypothesis_text: str, glossary
 ) -> dict:
-    """Score one utterance pair against the glossary.
-
-    A hypothesis span is a hit iff it aligns (on canonical tokens) to a
-    reference span of the same term; otherwise it is an insertion. A
-    reference span with no matching hypothesis span is a miss.
-    """
+    """Internal scorer: counts plus the span/alignment detail."""
     ref_spans = find_spans(reference_text, glossary)
     hyp_spans = find_spans(hypothesis_text, glossary)
     ref_keys = [key for key, _, _ in _tokenize_with_spans(reference_text)]
@@ -282,6 +278,7 @@ def score_file(
     hits = 0
     insertions = 0
     consumed = [False] * len(ref_spans)
+    insertion_hyp: list[int] = []
     for h_idx, h_span in enumerate(hyp_spans):
         lo, hi = hyp_tok_ranges[h_idx]
         aligned = {hyp_to_ref[t] for t in range(lo, hi) if t in hyp_to_ref}
@@ -295,6 +292,7 @@ def score_file(
                 break
         if hit_idx is None:
             insertions += 1
+            insertion_hyp.append(h_idx)
         else:
             consumed[hit_idx] = True
             hits += 1
@@ -305,7 +303,92 @@ def score_file(
         "misses": misses,
         "n_reference_occurrences": len(ref_spans),
         "n_hypothesis_spans": len(hyp_spans),
+        "ref_spans": ref_spans,
+        "hyp_spans": hyp_spans,
+        "consumed": consumed,
+        "insertion_hyp": insertion_hyp,
     }
+
+
+def _term_origins(glossary) -> dict[str, str | None]:
+    origins: dict[str, str | None] = {}
+    for entry in glossary or []:
+        if not isinstance(entry, dict):
+            continue
+        for key in ("term_id", "id", "term", "name", "key"):
+            value = entry.get(key)
+            if isinstance(value, str) and value:
+                origins[value] = entry.get("origin")
+                break
+    return origins
+
+
+def score_file(
+    reference_text: str, hypothesis_text: str, glossary
+) -> dict:
+    """Score one utterance pair against the glossary.
+
+    A hypothesis span is a hit iff it aligns (on canonical tokens) to a
+    reference span of the same term; otherwise it is an insertion. A
+    reference span with no matching hypothesis span is a miss.
+    """
+    parts = _score_parts(reference_text, hypothesis_text, glossary)
+    return {
+        key: parts[key]
+        for key in (
+            "hits",
+            "insertions",
+            "misses",
+            "n_reference_occurrences",
+            "n_hypothesis_spans",
+        )
+    }
+
+
+def score_file_detail(
+    reference_text: str, hypothesis_text: str, glossary
+) -> dict:
+    """Like :func:`score_file`, plus per-term rows for the report appendix.
+
+    Reference spans become hit/miss rows eligible for the recall denominator;
+    unmatched hypothesis spans become insertion rows excluded from it.
+    """
+    parts = _score_parts(reference_text, hypothesis_text, glossary)
+    origins = _term_origins(glossary)
+    rows: list[dict] = []
+    for idx, span in enumerate(parts["ref_spans"]):
+        term_id = str(span["term_id"])
+        rows.append(
+            {
+                "term_id": term_id,
+                "origin": origins.get(term_id),
+                "hit": parts["consumed"][idx],
+                "insertion": False,
+                "in_denom": True,
+            }
+        )
+    for h_idx in parts["insertion_hyp"]:
+        span = parts["hyp_spans"][h_idx]
+        term_id = str(span["term_id"])
+        rows.append(
+            {
+                "term_id": term_id,
+                "origin": origins.get(term_id),
+                "hit": False,
+                "insertion": True,
+                "in_denom": False,
+            }
+        )
+    return {
+        key: parts[key]
+        for key in (
+            "hits",
+            "insertions",
+            "misses",
+            "n_reference_occurrences",
+            "n_hypothesis_spans",
+        )
+    } | {"rows": rows}
 
 
 def assert_hard_negatives_separable(glossary, pairs) -> None:
