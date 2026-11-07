@@ -209,3 +209,8 @@ data/                 committed glossary, core-200, assignment, scripts
 python -m pytest tests/ -q     # 326 tests
 ruff check lexiforge tests web scripts
 ```
+
+CI also runs the suite twice on Python 3.11, once with `PYTHONHASHSEED=0` and
+once with `PYTHONHASHSEED=1`, so hash-order nondeterminism in generated contexts
+cannot pass silently. A separate job builds a wheel with
+`python -m pip wheel . --no-deps`.
