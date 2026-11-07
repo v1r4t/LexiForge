@@ -74,8 +74,20 @@ The study is declared failed and reported as such if any of the following holds:
 
 A failed study is reported with the failure reason, the claim ladder step reached (H1+H2 → H2 alone → mechanism only → harness only), and no confirmatory p-values. A reproducible null is not a failure.
 
-## 9. Signature
+## 9. Keyterm Health POC (measurement-led) — pre-registered additions
 
-Pre-registered 2026-10-29, before any pass-2 data exists. Confirmatory family {H1, H2} closed. Holm at 0.05. Freeze list in §7 binding.
+For the Gnani Prisma v3.0 Keyterm Health POC (see [`docs/keyterm-health-poc.md`](keyterm-health-poc.md)):
+
+- **Arms (POC):** `baseline` (none), `selected-200` (glossary + pass-1 transcript + metadata; selection never uses reference script), `mismatched-200` (off-domain, zero overlap), `hard-negative-200` (phonetically/orthographically close), `static-200` (optional). Budget 200 where specified.
+- **Pinned config:** `format=transcribe` and `language_code=hi-IN,en-IN` across all arms. Record `detected_language_code` per job/segment.
+- **Internal-only phases:** Phase 1–2 use TTS/synthetic audio only (**internal harness validation — not for external distribution**). Synthetic-audio and circularity disclosure required if used. No measured results claimed.
+- **Metrics (POC):** real-term recall, glossary-term insertions/utterance (with frozen insertion definition), fictional/OOV recall, WER (guardrail), decoder-ignore rate (reported with numerator/denominator).
+- **Primary verdict (non-inferiority on harm):** recall 95% CI lower bound of (selected − baseline) ≥ **−5pp** AND insertion 95% CI upper bound of (selected − baseline) ≤ **+0.5**. Else `INCONCLUSIVE` if CIs too wide to decide, else `FAIL` if violated. **Lift is descriptive only** — do not claim lift if CI includes 0.
+- **Claims register:** verified/inferred/unverified. Only verified claims may be stated as fact; inferred items must be labeled as to-validate.
+- **Circularity control:** selection uses baseline pass-1 transcript + call metadata only; never reference script. Matcher gold set ≥0.98 required before trusting scores.
+
+## 10. Signature
+
+Pre-registered 2026-10-29, before any pass-2 data exists. Confirmatory family {H1, H2} closed. Holm at 0.05. Freeze list in §7 binding. POC additions frozen as above.
 
 Signed: ______________________ Date: 2026-10-29
