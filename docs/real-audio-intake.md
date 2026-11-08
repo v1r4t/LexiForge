@@ -50,6 +50,18 @@ customer's infrastructure; only aggregate metrics and redacted examples leave.
 
 `reference` and `reference_text` are mutually exclusive per call; one is required.
 
+## Printable recording pack
+
+Generate the human sheets, reference transcripts and manifest in one step:
+
+```bash
+python scripts/build_recording_pack.py --calls c00,c01,c02,c03
+```
+
+Outputs `recording/README.md`, `recording/scripts/<call>.md`,
+`recording/refs/<call>.txt`, `recording/manifest.template.json`, the consent
+form and the QC checklist. Audio goes to `recording/audio/` (gitignored).
+
 ## Commands
 
 Dry run first — builds plans, uses no credits:

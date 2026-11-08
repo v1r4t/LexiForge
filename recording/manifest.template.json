@@ -1,0 +1,37 @@
+{
+  "study_id": "gnani-bfsi-recording-1",
+  "calls": [
+    {
+      "call_id": "c00",
+      "audio": "recording/audio/c00.wav",
+      "reference": "recording/refs/c00.txt",
+      "call_type": "mandate_fail",
+      "utterances": 5,
+      "mismatched_domain": "upi_failed"
+    },
+    {
+      "call_id": "c01",
+      "audio": "recording/audio/c01.wav",
+      "reference": "recording/refs/c01.txt",
+      "call_type": "kyc_reverify",
+      "utterances": 5,
+      "mismatched_domain": "fraud_dispute"
+    },
+    {
+      "call_id": "c02",
+      "audio": "recording/audio/c02.wav",
+      "reference": "recording/refs/c02.txt",
+      "call_type": "upi_failed",
+      "utterances": 5,
+      "mismatched_domain": "card_block"
+    },
+    {
+      "call_id": "c03",
+      "audio": "recording/audio/c03.wav",
+      "reference": "recording/refs/c03.txt",
+      "call_type": "card_block",
+      "utterances": 5,
+      "mismatched_domain": "loan_foreclosure"
+    }
+  ]
+}

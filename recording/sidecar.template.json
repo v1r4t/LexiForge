@@ -1,0 +1,17 @@
+{
+  "call_id": "c00",
+  "pair_id": "AB",
+  "turn_id": 1,
+  "speaker_role": "AGT|CUS",
+  "speaker_id": "S1",
+  "take_kept": 1,
+  "script_path": "data/scripts/c00.json",
+  "device_id": "rec-01",
+  "room_id": "room-01",
+  "recorded_at": "2026-11-08T10:23:45Z",
+  "guide_used": true,
+  "rehearsal_drill": false,
+  "first_take_default": true,
+  "qc_passed": false,
+  "notes": ""
+}

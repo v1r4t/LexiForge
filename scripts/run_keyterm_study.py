@@ -23,11 +23,16 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
-from scripts.run_keyterm_pilot import ARM_NAMES, PilotResult, run_pilot
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from scripts.run_keyterm_pilot import ARM_NAMES, PilotResult, run_pilot  # noqa: E402
 
 __all__ = ["StudyResult", "load_manifest", "run_study", "main"]
 
