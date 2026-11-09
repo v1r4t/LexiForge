@@ -17,8 +17,12 @@ Per call:
 | `call_type` | Yes | e.g. `mandate_fail`, `upi_failed`, `collections` |
 | `utterances` | Yes | Number of reference utterances/turns |
 | `mismatched_domain` | Optional | Off-domain pool for the negative control |
+| `must_have` | Optional | Terms that must survive selection (`list[str]`) |
 | Consent record | Yes | A signed/recorded consent covering this use |
 | PII status | Yes | Redacted, or explicit approval to process |
+
+In the manifest, consent and PII are carried by the optional `consent_ref`
+(path or identifier) and `pii_status` fields.
 
 Do **not** send real customer audio without consent. The harness scores on the
 customer's infrastructure; only aggregate metrics and redacted examples leave.
@@ -35,7 +39,10 @@ customer's infrastructure; only aggregate metrics and redacted examples leave.
       "reference": "refs/c01.txt",
       "call_type": "mandate_fail",
       "utterances": 5,
-      "mismatched_domain": "upi_failed"
+      "mismatched_domain": "upi_failed",
+      "must_have": ["UPI", "NEFT"],
+      "consent_ref": "consent/c01.pdf",
+      "pii_status": "redacted"
     },
     {
       "call_id": "c02",
@@ -48,7 +55,35 @@ customer's infrastructure; only aggregate metrics and redacted examples leave.
 }
 ```
 
-`reference` and `reference_text` are mutually exclusive per call; one is required.
+`reference` and `reference_text` are mutually exclusive per call; exactly one is
+required. `call_id` values must be unique, and unknown keys are rejected at both
+the manifest and call level.
+
+## Validation
+
+The schema is **prepare-only**: it is exercised against fixtures, not signed off
+against real audio yet. `lexiforge.study.manifest` is the single schema owner:
+
+```python
+from lexiforge.study import ManifestError, load_manifest, validate_manifest
+
+load_manifest("manifest.json")        # validated + normalized dict
+validate_manifest(data)               # list[str] of every schema error
+```
+
+Rules:
+
+- `study_id` is a non-empty string; `calls` is a non-empty list.
+- Every call needs `call_id`, `audio`, and exactly one of `reference` /
+  `reference_text`; an empty string counts as absent.
+- `call_type` defaults to `general`, `utterances` to `1`, `must_have` to `[]`.
+- `must_have` must be a `list[str]`; each `consent_ref` / `pii_status` is an
+  optional non-empty string.
+- Duplicate `call_id`, unknown keys, both/neither reference forms, and a
+  non-positive `utterances` raise `ManifestError` (a `ValueError`).
+
+`scripts/run_keyterm_study.py` re-exports the same `load_manifest`, so the
+runner and the schema cannot drift.
 
 ## Printable recording pack
 
