@@ -3,35 +3,223 @@
   "calls": [
     {
       "call_id": "c00",
-      "audio": "recording/audio/c00.wav",
-      "reference": "recording/refs/c00.txt",
+      "audio": "audio/c00.wav",
+      "reference": "refs/c00.txt",
       "call_type": "mandate_fail",
       "utterances": 5,
-      "mismatched_domain": "upi_failed"
+      "mismatched_domain": "upi_failed",
+      "must_have": [],
+      "consent_ref": "consent.md",
+      "pii_status": "pending"
     },
     {
       "call_id": "c01",
-      "audio": "recording/audio/c01.wav",
-      "reference": "recording/refs/c01.txt",
+      "audio": "audio/c01.wav",
+      "reference": "refs/c01.txt",
       "call_type": "kyc_reverify",
       "utterances": 5,
-      "mismatched_domain": "fraud_dispute"
+      "mismatched_domain": "fraud_dispute",
+      "must_have": [],
+      "consent_ref": "consent.md",
+      "pii_status": "pending"
     },
     {
       "call_id": "c02",
-      "audio": "recording/audio/c02.wav",
-      "reference": "recording/refs/c02.txt",
+      "audio": "audio/c02.wav",
+      "reference": "refs/c02.txt",
       "call_type": "upi_failed",
       "utterances": 5,
-      "mismatched_domain": "card_block"
+      "mismatched_domain": "card_block",
+      "must_have": [],
+      "consent_ref": "consent.md",
+      "pii_status": "pending"
     },
     {
       "call_id": "c03",
-      "audio": "recording/audio/c03.wav",
-      "reference": "recording/refs/c03.txt",
+      "audio": "audio/c03.wav",
+      "reference": "refs/c03.txt",
       "call_type": "card_block",
       "utterances": 5,
-      "mismatched_domain": "loan_foreclosure"
+      "mismatched_domain": "loan_foreclosure",
+      "must_have": [],
+      "consent_ref": "consent.md",
+      "pii_status": "pending"
+    },
+    {
+      "call_id": "c04",
+      "audio": "audio/c04.wav",
+      "reference": "refs/c04.txt",
+      "call_type": "collections",
+      "utterances": 5,
+      "mismatched_domain": "kyc_reverify",
+      "must_have": [],
+      "consent_ref": "consent.md",
+      "pii_status": "pending"
+    },
+    {
+      "call_id": "c05",
+      "audio": "audio/c05.wav",
+      "reference": "refs/c05.txt",
+      "call_type": "loan_emi",
+      "utterances": 5,
+      "mismatched_domain": "fd_rates",
+      "must_have": [],
+      "consent_ref": "consent.md",
+      "pii_status": "pending"
+    },
+    {
+      "call_id": "c06",
+      "audio": "audio/c06.wav",
+      "reference": "refs/c06.txt",
+      "call_type": "fd_rates",
+      "utterances": 5,
+      "mismatched_domain": "insurance",
+      "must_have": [],
+      "consent_ref": "consent.md",
+      "pii_status": "pending"
+    },
+    {
+      "call_id": "c07",
+      "audio": "audio/c07.wav",
+      "reference": "refs/c07.txt",
+      "call_type": "netbanking_login",
+      "utterances": 5,
+      "mismatched_domain": "kyc_reverify",
+      "must_have": [],
+      "consent_ref": "consent.md",
+      "pii_status": "pending"
+    },
+    {
+      "call_id": "c08",
+      "audio": "audio/c08.wav",
+      "reference": "refs/c08.txt",
+      "call_type": "fraud_dispute",
+      "utterances": 5,
+      "mismatched_domain": "card_block",
+      "must_have": [],
+      "consent_ref": "consent.md",
+      "pii_status": "pending"
+    },
+    {
+      "call_id": "c09",
+      "audio": "audio/c09.wav",
+      "reference": "refs/c09.txt",
+      "call_type": "insurance",
+      "utterances": 5,
+      "mismatched_domain": "kyc_reverify",
+      "must_have": [],
+      "consent_ref": "consent.md",
+      "pii_status": "pending"
+    },
+    {
+      "call_id": "c10",
+      "audio": "audio/c10.wav",
+      "reference": "refs/c10.txt",
+      "call_type": "chequebook",
+      "utterances": 5,
+      "mismatched_domain": "upi_failed",
+      "must_have": [],
+      "consent_ref": "consent.md",
+      "pii_status": "pending"
+    },
+    {
+      "call_id": "c11",
+      "audio": "audio/c11.wav",
+      "reference": "refs/c11.txt",
+      "call_type": "forex_nri",
+      "utterances": 5,
+      "mismatched_domain": "branch_visit",
+      "must_have": [],
+      "consent_ref": "consent.md",
+      "pii_status": "pending"
+    },
+    {
+      "call_id": "c12",
+      "audio": "audio/c12.wav",
+      "reference": "refs/c12.txt",
+      "call_type": "mandate_setup",
+      "utterances": 5,
+      "mismatched_domain": "kyc_update",
+      "must_have": [],
+      "consent_ref": "consent.md",
+      "pii_status": "pending"
+    },
+    {
+      "call_id": "c13",
+      "audio": "audio/c13.wav",
+      "reference": "refs/c13.txt",
+      "call_type": "kyc_update",
+      "utterances": 5,
+      "mismatched_domain": "chequebook",
+      "must_have": [],
+      "consent_ref": "consent.md",
+      "pii_status": "pending"
+    },
+    {
+      "call_id": "c14",
+      "audio": "audio/c14.wav",
+      "reference": "refs/c14.txt",
+      "call_type": "upi_dispute",
+      "utterances": 5,
+      "mismatched_domain": "card_block",
+      "must_have": [],
+      "consent_ref": "consent.md",
+      "pii_status": "pending"
+    },
+    {
+      "call_id": "c15",
+      "audio": "audio/c15.wav",
+      "reference": "refs/c15.txt",
+      "call_type": "card_limit",
+      "utterances": 5,
+      "mismatched_domain": "loan_foreclosure",
+      "must_have": [],
+      "consent_ref": "consent.md",
+      "pii_status": "pending"
+    },
+    {
+      "call_id": "c16",
+      "audio": "audio/c16.wav",
+      "reference": "refs/c16.txt",
+      "call_type": "collections_settlement",
+      "utterances": 5,
+      "mismatched_domain": "fraud_dispute",
+      "must_have": [],
+      "consent_ref": "consent.md",
+      "pii_status": "pending"
+    },
+    {
+      "call_id": "c17",
+      "audio": "audio/c17.wav",
+      "reference": "refs/c17.txt",
+      "call_type": "loan_foreclosure",
+      "utterances": 5,
+      "mismatched_domain": "collections",
+      "must_have": [],
+      "consent_ref": "consent.md",
+      "pii_status": "pending"
+    },
+    {
+      "call_id": "c18",
+      "audio": "audio/c18.wav",
+      "reference": "refs/c18.txt",
+      "call_type": "branch_visit",
+      "utterances": 5,
+      "mismatched_domain": "forex_nri",
+      "must_have": [],
+      "consent_ref": "consent.md",
+      "pii_status": "pending"
+    },
+    {
+      "call_id": "c19",
+      "audio": "audio/c19.wav",
+      "reference": "refs/c19.txt",
+      "call_type": "insurance_claim",
+      "utterances": 5,
+      "mismatched_domain": "loan_emi",
+      "must_have": [],
+      "consent_ref": "consent.md",
+      "pii_status": "pending"
     }
   ]
 }

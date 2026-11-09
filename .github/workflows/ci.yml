@@ -30,6 +30,10 @@ jobs:
         run: |
           ruff check lexiforge tests web scripts
 
+      - name: Check committed data consistency
+        run: |
+          python scripts/check_data_consistency.py
+
       - name: Run tests
         run: |
           python -m pytest tests/ -q

@@ -26,6 +26,8 @@ Design approved 2026-10-29. Deadline 2026-11-10.
 - Design: [`docs/design.md`](docs/design.md)
 - Keyterm Health POC: [`docs/keyterm-health-poc.md`](docs/keyterm-health-poc.md) (measurement-led, pre-registered, internal-only Phases 1-2 synthetic; no measured results claimed)
 - Real-audio intake: [`docs/real-audio-intake.md`](docs/real-audio-intake.md)
+- Recording protocol: [`docs/recording-protocol.md`](docs/recording-protocol.md) (pack generation, consent, QC; preparation only, no audio recorded)
+- Consent and redaction: [`docs/consent-and-redaction.md`](docs/consent-and-redaction.md)
 - Pre-registration: [`docs/preregistration.md`](docs/preregistration.md)
 - Notes: [`docs/notes/`](docs/notes/)
 

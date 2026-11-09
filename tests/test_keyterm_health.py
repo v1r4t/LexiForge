@@ -366,3 +366,129 @@ def test_markdown_is_labelled_internal_only() -> None:
     )
     md = render_markdown(report)
     assert "internal" in md.lower()
+
+
+def _ab_arms() -> list[dict]:
+    return [
+        {
+            "name": "baseline",
+            "rows": [
+                {
+                    "call_id": "c1",
+                    "real_recall": {"num": 8, "den": 10},
+                    "insertions_per_utterance": {"num": 1, "den": 4},
+                },
+                {
+                    "call_id": "c2",
+                    "real_recall": {"num": 8, "den": 10},
+                    "insertions_per_utterance": {"num": 1, "den": 4},
+                },
+            ],
+        },
+        {
+            "name": "mismatched-200",
+            "rows": [
+                {
+                    "call_id": "c1",
+                    "real_recall": {"num": 7, "den": 10},
+                    "insertions_per_utterance": {"num": 2, "den": 4},
+                },
+                {
+                    "call_id": "c2",
+                    "real_recall": {"num": 8, "den": 10},
+                    "insertions_per_utterance": {"num": 1, "den": 4},
+                },
+            ],
+        },
+    ]
+
+
+def test_ab_endpoints_render_requested_pair_as_first_class_rows() -> None:
+    report = build_report(
+        call_id="c1",
+        arms=_ab_arms(),
+        provenance={"model": "m"},
+        prereg={"recall_margin": -0.05, "insertion_cap": 0.5},
+        comparisons=[
+            ("baseline", "mismatched-200", "real_recall"),
+            ("baseline", "mismatched-200", "insertions_per_utterance"),
+        ],
+    )
+    rows = report["comparisons"]
+    assert [row["metric"] for row in rows] == [
+        "real_recall",
+        "insertions_per_utterance",
+    ]
+    recall = rows[0]
+    assert (recall["arm_a"], recall["arm_b"]) == ("baseline", "mismatched-200")
+    assert recall["deltas"] == [pytest.approx(-0.1), pytest.approx(0.0)]
+    assert recall["mean"] == pytest.approx(-0.05)
+    assert recall["ci_low"] <= recall["mean"] <= recall["ci_high"]
+
+    md = render_markdown(report)
+    assert "### Endpoints (A/B)" in md
+    assert "mismatched-200 vs baseline" in md
+    assert f"[{recall['ci_low']:+.3f}, {recall['ci_high']:+.3f}]" in md
+    assert "p-value" not in md.lower()
+
+
+def test_ab_endpoints_unknown_arm_raises() -> None:
+    with pytest.raises(ValueError, match="unknown arm"):
+        build_report(
+            call_id="c1",
+            arms=_ab_arms(),
+            provenance={"model": "m"},
+            prereg={},
+            comparisons=[("baseline", "not-an-arm", "real_recall")],
+        )
+
+
+def test_ab_endpoints_default_to_the_non_inferiority_pair() -> None:
+    arms = _ab_arms() + [
+        {
+            "name": "selected-200",
+            "rows": [
+                {
+                    "call_id": "c1",
+                    "real_recall": {"num": 9, "den": 10},
+                    "insertions_per_utterance": {"num": 1, "den": 4},
+                },
+                {
+                    "call_id": "c2",
+                    "real_recall": {"num": 9, "den": 10},
+                    "insertions_per_utterance": {"num": 1, "den": 4},
+                },
+            ],
+        }
+    ]
+    report = build_report(
+        call_id="c1",
+        arms=arms,
+        provenance={"model": "m"},
+        prereg={"recall_margin": -0.05, "insertion_cap": 0.5},
+    )
+    assert [
+        (row["arm_a"], row["arm_b"], row["metric"]) for row in report["comparisons"]
+    ] == [
+        ("baseline", "selected-200", "real_recall"),
+        ("baseline", "selected-200", "insertions_per_utterance"),
+    ]
+    assert report["comparisons"][0]["mean"] == pytest.approx(
+        report["paired_deltas"]["real_recall"]["mean"]
+    )
+
+
+def test_ab_endpoints_do_not_change_the_verdict() -> None:
+    kwargs = {
+        "call_id": "c1",
+        "arms": _ab_arms(),
+        "provenance": {"model": "m"},
+        "prereg": {"recall_margin": -0.05, "insertion_cap": 0.5},
+    }
+    plain = build_report(**kwargs)
+    extended = build_report(
+        **kwargs,
+        comparisons=[("mismatched-200", "baseline", "real_recall")],
+    )
+    assert extended["paired_deltas"] == plain["paired_deltas"]
+    assert extended["verdict"] == plain["verdict"]

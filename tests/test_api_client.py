@@ -259,5 +259,135 @@ class TestFilesAndTranscripts(unittest.TestCase):
         self.assertEqual(calls.count("/stt/v3/batch/jobs/j/files"), 1)
 
 
+class TestListAndCancel(unittest.TestCase):
+    """Admin surface: list jobs and idempotent cancel (design.md §4, §10)."""
+
+    def test_list_jobs_returns_records_with_limit(self):
+        seen = {}
+
+        def handler(request):
+            seen["method"] = request.method
+            seen["path"] = request.url.path
+            seen["query"] = dict(request.url.params)
+            return json_response(
+                200,
+                {
+                    "jobs": [
+                        {"job_id": "j1", "status": "COMPLETED"},
+                        {"id": "j2", "status": "PROCESSING"},
+                    ]
+                },
+            )
+
+        with make_client(handler) as client:
+            jobs = client.list_jobs()
+        self.assertEqual(seen["method"], "GET")
+        self.assertTrue(seen["path"].endswith("/stt/v3/batch/jobs"), seen["path"])
+        self.assertEqual(seen["query"], {"limit": "100"})
+        self.assertEqual(
+            [job.get("job_id") or job.get("id") for job in jobs], ["j1", "j2"]
+        )
+
+    def test_list_jobs_filters_status_and_limit(self):
+        seen = {}
+
+        def handler(request):
+            seen["query"] = dict(request.url.params)
+            return json_response(200, [])
+
+        with make_client(handler) as client:
+            self.assertEqual(client.list_jobs(status="FAILED", limit=3), [])
+        self.assertEqual(seen["query"], {"status": "FAILED", "limit": "3"})
+
+    def test_list_jobs_accepts_bare_list_payload(self):
+        def handler(request):
+            return json_response(200, [{"job_id": "j1", "status": "COMPLETED"}])
+
+        with make_client(handler) as client:
+            jobs = client.list_jobs()
+        self.assertEqual(jobs, [{"job_id": "j1", "status": "COMPLETED"}])
+
+    def test_list_jobs_rejects_unexpected_payload(self):
+        def handler(request):
+            return json_response(200, {"unexpected": True})
+
+        with make_client(handler) as client:
+            with self.assertRaises(BatchApiError):
+                client.list_jobs()
+
+    def test_cancel_completed_is_noop(self):
+        calls = []
+
+        def handler(request):
+            calls.append((request.method, request.url.path))
+            return json_response(200, {"job_id": "j1", "status": "COMPLETED"})
+
+        with make_client(handler) as client:
+            status = client.cancel_job("j1")
+        self.assertEqual(status, "COMPLETED")
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0][0], "GET")
+
+    def test_cancel_posts_cancel_path_and_returns_status(self):
+        seen = []
+
+        def handler(request):
+            seen.append((request.method, request.url.path))
+            if request.method == "GET":
+                return json_response(200, {"job_id": "j1", "status": "PROCESSING"})
+            return json_response(200, {"job_id": "j1", "status": "CANCELLED"})
+
+        with make_client(handler) as client:
+            status = client.cancel_job("j1")
+        self.assertEqual(status, "CANCELLED")
+        self.assertEqual(seen[-1], ("POST", "/stt/v3/batch/jobs/j1/cancel"))
+
+    def test_cancel_retries_429_once(self):
+        posts = []
+
+        def handler(request):
+            if request.method == "GET":
+                return json_response(200, {"job_id": "j1", "status": "PROCESSING"})
+            posts.append(request)
+            if len(posts) == 1:
+                return json_response(429, {"code": "RATE_LIMITED"})
+            return json_response(200, {"status": "CANCELLED"})
+
+        with make_client(handler) as client:
+            self.assertEqual(client.cancel_job("j1"), "CANCELLED")
+        self.assertEqual(len(posts), 2)
+
+    def test_cancel_does_not_retry_5xx(self):
+        posts = []
+
+        def handler(request):
+            if request.method == "GET":
+                return json_response(200, {"job_id": "j1", "status": "PROCESSING"})
+            posts.append(request)
+            return json_response(504, {"code": "UPSTREAM_TIMEOUT"})
+
+        with make_client(handler) as client:
+            with self.assertRaises(BatchApiError) as ctx:
+                client.cancel_job("j1")
+        self.assertEqual(ctx.exception.status_code, 504)
+        self.assertEqual(len(posts), 1)
+
+    def test_cancel_400_is_raised(self):
+        posts = []
+
+        def handler(request):
+            if request.method == "GET":
+                return json_response(200, {"job_id": "j1", "status": "PROCESSING"})
+            posts.append(request)
+            return json_response(400, {"code": "INVALID_CONFIG"})
+
+        with make_client(handler) as client:
+            with self.assertRaises(BatchApiError) as ctx:
+                client.cancel_job("j1")
+        self.assertEqual(ctx.exception.status_code, 400)
+        self.assertEqual(ctx.exception.code, "INVALID_CONFIG")
+        self.assertEqual(len(posts), 1)
+
+
 if __name__ == "__main__":
     unittest.main()
