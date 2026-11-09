@@ -9,6 +9,12 @@ Complete for every speaker before recording.
 - [ ] Withdrawal: I may withdraw before the freeze; my recordings will be removed where feasible.
 - [ ] No PII: I understand only assigned speaker IDs appear in metadata.
 
+## Data handling
+
+Recordings, reference transcripts and audio hashes stay on the study machine
+(gitignored). What leaves is limited to aggregate metrics and redacted examples
+(five masked classes; see `docs/consent-and-redaction.md`).
+
 > I have read and understood the checklist. I voluntarily consent to participate
 > in the LexiForge recording study under these conditions.
 

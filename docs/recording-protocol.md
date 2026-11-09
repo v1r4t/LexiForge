@@ -1,5 +1,12 @@
 # Recording Protocol
 
+> **Status: preparation only.** No human audio has been recorded for this study.
+> The pack, consent form and QC checklist are ready; nothing here supports a
+> result claim until calls are recorded, checked and scored.
+>
+> Start with the generated pack (§10). Consent and export rules live in
+> [`consent-and-redaction.md`](consent-and-redaction.md).
+
 ## 1. Session setup
 
 - **One session per call.** Record each of the 20 calls in its own recording session. Do not batch multiple calls into a single continuous recording session.
@@ -87,6 +94,11 @@ The **six speaker pairs rotate AB, AC, AD, BC, BD, CD repeated**, so that **any 
 
 ## 7. Consent checklist and signable paragraph
 
+Consent is per speaker and must be signed before the first take. The generated
+`recording/consent.md` carries this checklist verbatim; the binding rules,
+withdrawal window and data handling are in
+[`consent-and-redaction.md`](consent-and-redaction.md).
+
 **Consent checklist (must be completed for every speaker before recording):**
 
 - [ ] **Recording:** I consent to being recorded for this research project.
@@ -123,3 +135,46 @@ The **six speaker pairs rotate AB, AC, AD, BC, BD, CD repeated**, so that **any 
 - **Replacement:** If a speaker drops out, they may be replaced **only if the replacement passes the pronunciation guide that day**. The replacement must complete consent (§7) before recording.
 - **Fallback:** If a suitable replacement cannot pass the guide that day, **drop to three speakers and 18 calls**. This is the designed fallback.
 - **Documentation:** Any dropout, replacement attempt, and the final decision (replacement or drop to 3 speakers/18 calls) must be **fully documented** in the recording log/arbitration log, including timestamps, who decided, and justification. The design's prefix-balanced rotation ensures that dropping to three speakers still leaves a balanced design rather than a collapsed pair.
+
+## 10. Recording pack (one command)
+
+Generate every artefact needed for the 20-call study from the committed scripts:
+
+```bash
+python scripts/build_recording_pack.py
+```
+
+The default is calls `c00`–`c19`; pass `--calls c00,c01` for a partial pack and
+`--out <dir>` to write elsewhere. The command writes:
+
+| Path | Purpose |
+|---|---|
+| `scripts/<call>.md` | Human call sheet: dialogue, target terms, delivery rules. |
+| `refs/<call>.txt` | Reference transcript, generated from the script text. |
+| `manifest.template.json` | Intake manifest for `scripts/run_keyterm_study.py`. |
+| `consent.md` | Per-speaker consent form (§7). |
+| `qc-checklist.md` | Six QC items (§8) plus the retake log. |
+| `sidecar.template.json` | Per-file metadata template (§5). |
+| `README.md` | Step-by-step record/validate/score instructions. |
+
+Rules for the pack:
+
+- **Generated, never hand-edited.** Regenerate after a script or glossary change;
+  never patch a sheet to match what was heard.
+- **Relative, forward-slash paths.** Manifest entries are `audio/<call>.wav` and
+  `refs/<call>.txt` relative to the pack directory, so the pack is portable
+  across machines. Run the study from inside the pack directory.
+- **One reference per call.** `refs/<call>.txt` is the scored ground truth and
+  is copied verbatim from the script turns; it is regenerated, not curated.
+- **Calls without a script are skipped and printed**, never invented. A build
+  that reports skipped calls is incomplete; fix the scripts first (see
+  `docs/real-audio-intake.md`).
+- **No audio in the pack.** `audio/` is gitignored; the pack contains no
+  fixtures and claims no result.
+
+Before scoring, validate the filled manifest:
+
+```bash
+python scripts/record_check.py recording/manifest.json
+```
+
