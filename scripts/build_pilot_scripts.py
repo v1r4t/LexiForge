@@ -1,8 +1,10 @@
 """Build pilot call scripts from data/assignment.json and the committed glossary.
 
 The committed scripts were generated from a different glossary version, so many
-of their term IDs do not exist. This generator makes four internally consistent
-calls (c00-c03) from assignment keys 0-3.
+of their term IDs do not exist. This generator makes all twenty calls (c00-c19)
+from assignment keys "0".."19", so every ``glossary_terms`` / ``expected_*`` id
+resolves against the committed glossary. c00-c03 are frozen byte-for-byte; only
+c04-c19 were previously stale.
 
 Usage:
   python scripts/build_pilot_scripts.py --calls c00,c01,c02,c03 --write
@@ -17,13 +19,31 @@ from typing import Any, Mapping
 
 __all__ = ["build_scripts", "main"]
 
-DEFAULT_CALLS = ("c00", "c01", "c02", "c03")
+DEFAULT_CALLS = tuple(f"c{index:02d}" for index in range(20))
 
+# Each call's negative control is another real call type from the assignment.
+# The first four values are frozen with the c00-c03 scripts.
 _MISMATCH = {
     "mandate_fail": "upi_failed",
     "kyc_reverify": "fraud_dispute",
     "upi_failed": "card_block",
     "card_block": "loan_foreclosure",
+    "collections": "kyc_reverify",
+    "loan_emi": "fd_rates",
+    "fd_rates": "insurance",
+    "netbanking_login": "kyc_reverify",
+    "fraud_dispute": "card_block",
+    "insurance": "kyc_reverify",
+    "chequebook": "upi_failed",
+    "forex_nri": "branch_visit",
+    "mandate_setup": "kyc_update",
+    "kyc_update": "chequebook",
+    "upi_dispute": "card_block",
+    "card_limit": "loan_foreclosure",
+    "collections_settlement": "fraud_dispute",
+    "loan_foreclosure": "collections",
+    "branch_visit": "forex_nri",
+    "insurance_claim": "loan_emi",
 }
 
 
@@ -51,14 +71,20 @@ def _build_one(
     glossary: Mapping[str, Mapping[str, Any]],
 ) -> dict:
     call_type = str(assignment.get("call_type") or "general")
-    real_ids = [tid for tid in assignment.get("real", []) if tid in glossary]
-    fict_ids = [tid for tid in assignment.get("fictional", []) if tid in glossary]
+    real_ids = list(assignment.get("real", []))
+    fict_ids = list(assignment.get("fictional", []))
+    unknown = [tid for tid in real_ids + fict_ids if tid not in glossary]
+    if unknown:
+        raise ValueError(f"{call_id}: unknown glossary ids {unknown}")
+    if call_type not in _MISMATCH:
+        raise ValueError(f"{call_id}: no mismatched domain mapped for {call_type!r}")
     if len(real_ids) < 4 or len(fict_ids) < 3:
         raise ValueError(f"{call_id}: assignment needs >=4 real and >=3 fictional terms")
 
     def surface(tid: str) -> str:
         return str(glossary[tid]["canonical"])
 
+    oov = list(assignment.get("oov") or [])
     real = [surface(t) for t in real_ids]
     fict = [surface(t) for t in fict_ids]
     if len(real) >= 5:
@@ -92,6 +118,10 @@ def _build_one(
             t5_ids = [fict_ids[2]]
         turns.append(_turn(5, "AGT", t5, t5_ids))
 
+    if oov:
+        turns[3]["text"] += f" Aur {', '.join(oov)} ka bhi zara dekh lijiye."
+        turns[3]["est_s"] = _estimate(turns[3]["text"])
+
     return {
         "call_id": call_id,
         "call_type": call_type,
@@ -102,7 +132,7 @@ def _build_one(
         "turns": turns,
         "expected_real": real_ids,
         "expected_fictional": fict_ids,
-        "oov": [],
+        "oov": oov,
         "zero_turns": [1],
     }
 
@@ -117,8 +147,8 @@ def build_scripts(
     glossary_entries = _load(Path(glossary_path))
     glossary = {entry["term_id"]: entry for entry in glossary_entries}
     result = {}
-    for index, call_id in enumerate(calls):
-        key = str(index)
+    for call_id in calls:
+        key = str(int(call_id[1:]))
         if key not in assignment:
             raise KeyError(f"assignment has no key {key} for {call_id}")
         result[call_id] = _build_one(call_id, assignment[key], glossary)
