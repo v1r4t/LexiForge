@@ -1,6 +1,6 @@
 # LexiForge — Pre-registration
 
-**Date:** 2026-10-29. **Status:** committed before any pass-2 data exists. This document freezes the confirmatory claims, metrics, family, power, and analysis freedoms. Design reference: `docs/design.md` (approved 2026-10-29).
+**Date:** 2026-10-29. **Status:** committed before any pass-2 data exists. This document freezes the confirmatory claims, metrics, family, power, and analysis freedoms. Design reference: `docs/design.md` (approved 2026-10-29). **Amendment 1 (2026-11-09):** recorded in [`docs/preregistration-amendment-1.md`](preregistration-amendment-1.md); additive only — no new confirmatory claim and no change to §3 or §7.
 
 ## 1. Scope and exact claim
 
@@ -91,3 +91,15 @@ For the Gnani Prisma v3.0 Keyterm Health POC (see [`docs/keyterm-health-poc.md`]
 Pre-registered 2026-10-29, before any pass-2 data exists. Confirmatory family {H1, H2} closed. Holm at 0.05. Freeze list in §7 binding. POC additions frozen as above.
 
 Signed: ______________________ Date: 2026-10-29
+
+## 11. Amendments
+
+Amendments are additive, dated, and signed before data. They may clarify a
+frozen item or record an exploratory analysis; they may not add a confirmatory
+claim, change H1/H2, change the Holm family, or alter §7 after pass-2 data.
+
+| No. | Date | Status | Effect |
+|---|---|---|---|
+| 1 | 2026-11-09 | signed pre-data | `oracle-200` bound as positive control outside the family; `static-head-200` labelled secondary; n=20 target with descriptive n=4 fallback and its rejection limit recorded; term-present-anywhere recorded as sensitivity only; alias audit recorded as proposal-only with the table frozen. See [`docs/preregistration-amendment-1.md`](preregistration-amendment-1.md). |
+
+Amendment 1 sign-off: ______________________ Date: 2026-11-09
