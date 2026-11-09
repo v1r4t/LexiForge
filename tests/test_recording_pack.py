@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import math
+import struct
 import wave
 from pathlib import Path
 
@@ -71,11 +73,15 @@ def _fixture_pack(tmp_path: Path, count: int = 20) -> Path:
 
 def _wav(path: Path, seconds: float = 1.0, rate: int = 8000) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
+    frames = b"".join(
+        struct.pack("<h", int(2000 * math.sin(2 * math.pi * 440 * i / rate)))
+        for i in range(int(rate * seconds))
+    )
     with wave.open(str(path), "wb") as handle:
         handle.setnchannels(1)
         handle.setsampwidth(2)
         handle.setframerate(rate)
-        handle.writeframes(b"\x00\x00" * int(rate * seconds))
+        handle.writeframes(frames)
     return path
 
 

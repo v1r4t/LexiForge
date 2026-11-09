@@ -23,6 +23,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from lexiforge.study.manifest import ManifestError  # noqa: E402
 from scripts.run_keyterm_study import load_manifest  # noqa: E402
 
 __all__ = ["check_manifest", "main"]
@@ -149,7 +150,16 @@ def check_manifest(manifest_path: str | Path, *, strict: bool = False) -> dict[s
     non-WAV deep checks) as failures without moving them into ``errors``.
     """
     path = Path(manifest_path)
-    manifest = load_manifest(path)
+    try:
+        manifest = load_manifest(path)
+    except (ManifestError, ValueError, OSError) as exc:
+        return {
+            "ok": False,
+            "study_id": None,
+            "errors": [str(exc)],
+            "warnings": [],
+            "calls": [],
+        }
     errors: list[str] = []
     warnings: list[str] = []
     calls: list[dict[str, Any]] = []

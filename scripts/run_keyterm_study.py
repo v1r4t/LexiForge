@@ -77,6 +77,11 @@ def _require_str(value: Any, field_name: str) -> str:
     return value.strip()
 
 
+def _resolve_path(value: str, base: Path) -> Path:
+    path = Path(value)
+    return path if path.is_absolute() else base / path
+
+
 def _reference_text(call: Mapping[str, Any]) -> str:
     inline = call.get("reference_text")
     if isinstance(inline, str) and inline.strip():
@@ -253,6 +258,7 @@ def run_study(
     pad_selected: bool = True,
     critical_only: bool = False,
     must_have: list[str] | None = None,
+    base_dir: str | Path | None = None,
     run_pilot_fn: Callable[..., PilotResult] = run_pilot,
 ) -> StudyResult:
     """Run every call in the manifest; dry-run unless ``execute=True``.
@@ -275,14 +281,19 @@ def run_study(
     failed_calls: list[str] = []
     skipped_calls: list[str] = []
     failures: list[dict[str, str]] = []
+    base = Path(base_dir) if base_dir is not None else Path.cwd()
 
     for call in calls:
         call_id = str(call.get("call_id"))
         call_dir = Path(out_dir) / call_id
+        local_call = dict(call)
+        local_call["audio"] = str(_resolve_path(call["audio"], base))
+        if call.get("reference"):
+            local_call["reference"] = str(_resolve_path(call["reference"], base))
 
         if execute and resume and _is_resumable(call_dir, resolved_arms):
             try:
-                results.append(_resume_call(call, glossary, call_dir, resolved_arms))
+                results.append(_resume_call(local_call, glossary, call_dir, resolved_arms))
                 observed_calls.append(call_id)
                 skipped_calls.append(call_id)
                 continue
@@ -299,17 +310,17 @@ def run_study(
             "fmt": fmt,
             "language_code": language_code,
             "poll_timeout": poll_timeout,
-            "reference_text": _reference_text(call),
-            "script": _call_script(call),
+            "reference_text": _reference_text(local_call),
+            "script": _call_script(local_call),
             "pad_selected": pad_selected,
             "validator": validator,
             "critical_only": critical_only,
-            "must_have": call.get("must_have") or must_have,
+            "must_have": local_call.get("must_have") or must_have,
         }
         if _accepts_kwarg(run_pilot_fn, "arms"):
             pilot_kwargs["arms"] = list(resolved_arms)
         try:
-            results.append(run_pilot_fn(call_id, call["audio"], glossary, **pilot_kwargs))
+            results.append(run_pilot_fn(call_id, local_call["audio"], glossary, **pilot_kwargs))
         except Exception as exc:
             failures.append(_failure_record(call_id, exc))
             failed_calls.append(call_id)
@@ -443,6 +454,7 @@ def main(argv: list[str] | None = None) -> int:
         client=client,
         validator=validator,
         critical_only=args.critical_only,
+        base_dir=Path(args.manifest).parent,
     )
     if result.dry_run:
         print(f"Dry run for {manifest['study_id']}: {len(result.call_results)} call plans")

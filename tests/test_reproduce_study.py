@@ -254,7 +254,7 @@ def test_positive_control_has_ci_but_no_p_value(tmp_path):
     )
 
     control = result["analysis"]["positive_control"]
-    assert control["status"] == "present"
+    assert control["available"] is True
     assert control["ci_low"] is not None
     assert control["ci_high"] is not None
     assert "p_value" not in control

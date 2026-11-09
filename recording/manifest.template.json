@@ -68,6 +68,17 @@
       "pii_status": "pending"
     },
     {
+      "call_id": "c06",
+      "audio": "audio/c06.wav",
+      "reference": "refs/c06.txt",
+      "call_type": "fd_rates",
+      "utterances": 5,
+      "mismatched_domain": "insurance",
+      "must_have": [],
+      "consent_ref": "consent.md",
+      "pii_status": "pending"
+    },
+    {
       "call_id": "c07",
       "audio": "audio/c07.wav",
       "reference": "refs/c07.txt",
@@ -106,7 +117,7 @@
       "reference": "refs/c10.txt",
       "call_type": "chequebook",
       "utterances": 5,
-      "mismatched_domain": false,
+      "mismatched_domain": "upi_failed",
       "must_have": [],
       "consent_ref": "consent.md",
       "pii_status": "pending"
@@ -117,7 +128,18 @@
       "reference": "refs/c11.txt",
       "call_type": "forex_nri",
       "utterances": 5,
-      "mismatched_domain": false,
+      "mismatched_domain": "branch_visit",
+      "must_have": [],
+      "consent_ref": "consent.md",
+      "pii_status": "pending"
+    },
+    {
+      "call_id": "c12",
+      "audio": "audio/c12.wav",
+      "reference": "refs/c12.txt",
+      "call_type": "mandate_setup",
+      "utterances": 5,
+      "mismatched_domain": "kyc_update",
       "must_have": [],
       "consent_ref": "consent.md",
       "pii_status": "pending"
@@ -128,7 +150,7 @@
       "reference": "refs/c13.txt",
       "call_type": "kyc_update",
       "utterances": 5,
-      "mismatched_domain": false,
+      "mismatched_domain": "chequebook",
       "must_have": [],
       "consent_ref": "consent.md",
       "pii_status": "pending"
@@ -139,7 +161,7 @@
       "reference": "refs/c14.txt",
       "call_type": "upi_dispute",
       "utterances": 5,
-      "mismatched_domain": true,
+      "mismatched_domain": "card_block",
       "must_have": [],
       "consent_ref": "consent.md",
       "pii_status": "pending"
@@ -150,7 +172,7 @@
       "reference": "refs/c15.txt",
       "call_type": "card_limit",
       "utterances": 5,
-      "mismatched_domain": "banking",
+      "mismatched_domain": "loan_foreclosure",
       "must_have": [],
       "consent_ref": "consent.md",
       "pii_status": "pending"
@@ -161,7 +183,7 @@
       "reference": "refs/c16.txt",
       "call_type": "collections_settlement",
       "utterances": 5,
-      "mismatched_domain": false,
+      "mismatched_domain": "fraud_dispute",
       "must_have": [],
       "consent_ref": "consent.md",
       "pii_status": "pending"
@@ -172,7 +194,7 @@
       "reference": "refs/c17.txt",
       "call_type": "loan_foreclosure",
       "utterances": 5,
-      "mismatched_domain": false,
+      "mismatched_domain": "collections",
       "must_have": [],
       "consent_ref": "consent.md",
       "pii_status": "pending"
@@ -183,7 +205,7 @@
       "reference": "refs/c18.txt",
       "call_type": "branch_visit",
       "utterances": 5,
-      "mismatched_domain": false,
+      "mismatched_domain": "forex_nri",
       "must_have": [],
       "consent_ref": "consent.md",
       "pii_status": "pending"
@@ -194,7 +216,7 @@
       "reference": "refs/c19.txt",
       "call_type": "insurance_claim",
       "utterances": 5,
-      "mismatched_domain": false,
+      "mismatched_domain": "loan_emi",
       "must_have": [],
       "consent_ref": "consent.md",
       "pii_status": "pending"
