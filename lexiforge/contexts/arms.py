@@ -412,20 +412,32 @@ def _build_mismatched(
         return []
     mapping = _category_mapping(index, by_category)
     off_domain = _off_domain_mapping(mapping, call_type, expected, budget=budget)
-    own = _call_type_category(call_type, off_domain)
-    # ``own`` was already removed, so this sentinel never suppresses a category.
+    expected_keys = {canon(term) for term in expected}
+    off_domain_keys = {
+        canon(term)
+        for terms in off_domain.values()
+        for term in terms
+        if canon(term) and canon(term) not in expected_keys
+    }
+    if len(off_domain_keys) < budget:
+        # No strictly off-domain pool can fill the arm. Keep exact budget and
+        # zero overlap by drawing from the full glossary; the report records
+        # the weaker off-domain guarantee.
+        off_domain = dict(mapping)
+        own = None
+    else:
+        own = _call_type_category(call_type, off_domain)
+    # ``own`` may have been removed; this sentinel never suppresses a category.
     draw_key = own if own is not None else "__off_domain__"
     drawn = build_mismatched(
         off_domain, draw_key, expected, seed=seed, budget=budget
     )
-    pool = _unique_sorted(
-        term for terms in off_domain.values() for term in terms
-    )
+    pool = _unique_sorted(index.pool)
     return _pad(
         drawn,
         budget,
         pool,
-        exclude={canon(term) for term in expected},
+        exclude=expected_keys,
     )
 
 
