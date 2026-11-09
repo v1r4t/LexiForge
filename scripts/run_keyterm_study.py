@@ -17,11 +17,19 @@ The manifest is the real-audio intake format for the Gnani POC:
 
 Each call gets its own report; the study report pools per-call rows so the
 paired non-inferiority verdict is computed across calls, not within one call.
+
+Resume (P15, design §6 / §12): a call is skipped only when every arm transcript
+it would produce is newer than the call's ``plan.json``. Per-call failures are
+isolated — one raising call is logged in ``summary.json["failures"]`` and the
+remaining calls still run. Optional arms (``oracle-200``, ``static-head-200``)
+are accepted by name; their builders belong to P06/P07 and are never imported
+here.
 """
 
 from __future__ import annotations
 
 import argparse
+import inspect
 import json
 import sys
 from dataclasses import dataclass, field
@@ -34,7 +42,21 @@ if str(ROOT) not in sys.path:
 
 from scripts.run_keyterm_pilot import ARM_NAMES, PilotResult, run_pilot  # noqa: E402
 
-__all__ = ["StudyResult", "load_manifest", "run_study", "main"]
+__all__ = [
+    "StudyResult",
+    "EXTRA_ARM_NAMES",
+    "STUDY_ARM_NAMES",
+    "load_manifest",
+    "run_study",
+    "main",
+]
+
+# ``oracle-200`` (P06) and ``static-head-200`` (P07) are built by their own
+# modules; the runner only needs to accept and merge them.
+EXTRA_ARM_NAMES = ("oracle-200", "static-head-200")
+STUDY_ARM_NAMES = (*ARM_NAMES, *EXTRA_ARM_NAMES)
+
+TRANSCRIPT_SUFFIX = ".transcript.json"
 
 
 @dataclass
@@ -44,6 +66,8 @@ class StudyResult:
     report_markdown: str = ""
     report_path: Path | None = None
     summary: dict[str, Any] = field(default_factory=dict)
+    failed_calls: list[str] = field(default_factory=list)
+    skipped_calls: list[str] = field(default_factory=list)
 
 
 def _require_str(value: Any, field_name: str) -> str:
@@ -53,7 +77,22 @@ def _require_str(value: Any, field_name: str) -> str:
 
 
 def load_manifest(path: str | Path) -> dict[str, Any]:
-    """Load and validate the real-audio intake manifest."""
+    """Load and validate the real-audio intake manifest.
+
+    P14 moves the schema to :mod:`lexiforge.study.manifest`; until that module
+    is merged the local validator below stays authoritative, so this stays a
+    re-export either way.
+    """
+    try:
+        from lexiforge.study.manifest import load_manifest as loader
+    except ImportError:
+        loader = None
+    if loader is not None:
+        return loader(path)
+    return _load_manifest_local(path)
+
+
+def _load_manifest_local(path: str | Path) -> dict[str, Any]:
     data = json.loads(Path(path).read_text(encoding="utf-8"))
     if not isinstance(data, dict):
         raise ValueError("manifest must be a JSON object")
@@ -115,13 +154,123 @@ def _call_script(call: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
-def _merge_scored_arms(results: list[PilotResult]) -> list[dict[str, Any]]:
+def _resolve_arms(arms: Any) -> tuple[str, ...]:
+    """Validate requested arm names, preserving order and dropping duplicates."""
+    if arms is None:
+        return tuple(ARM_NAMES)
+    if isinstance(arms, str):
+        raise ValueError("arms must be a sequence of arm names, not a bare string")
+    resolved: list[str] = []
+    for value in arms:
+        name = str(value).strip()
+        if name not in STUDY_ARM_NAMES:
+            allowed = ", ".join(STUDY_ARM_NAMES)
+            raise ValueError(f"unknown arm '{name}'; expected one of: {allowed}")
+        if name not in resolved:
+            resolved.append(name)
+    if not resolved:
+        raise ValueError("arms must contain at least one arm")
+    return tuple(resolved)
+
+
+def _accepts_kwarg(fn: Callable[..., Any], name: str) -> bool:
+    """True when ``fn`` can take ``name`` (explicitly or via ``**kwargs``)."""
+    try:
+        params = inspect.signature(fn).parameters
+    except (TypeError, ValueError):
+        return False
+    return name in params or any(
+        param.kind is inspect.Parameter.VAR_KEYWORD for param in params.values()
+    )
+
+
+def _transcript_paths(run_dir: Path, arms: tuple[str, ...]) -> list[Path]:
+    return [run_dir / f"{arm}{TRANSCRIPT_SUFFIX}" for arm in arms]
+
+
+def _is_resumable(run_dir: Path, arms: tuple[str, ...]) -> bool:
+    """A call resumes only if every arm transcript is newer than its plan."""
+    plan_path = run_dir / "plan.json"
+    try:
+        plan_stamp = plan_path.stat().st_mtime_ns
+    except OSError:
+        return False
+    for path in _transcript_paths(run_dir, arms):
+        try:
+            if path.stat().st_mtime_ns <= plan_stamp:
+                return False
+        except OSError:
+            return False
+    return True
+
+
+def _rows_from_transcript(payload: Any) -> Mapping[str, Mapping[str, Any]]:
+    if not isinstance(payload, Mapping):
+        raise ValueError("transcript must be a JSON object")
+    rows = payload.get("rows")
+    if isinstance(rows, Mapping):
+        return {
+            str(key): dict(value)
+            for key, value in rows.items()
+            if isinstance(value, Mapping)
+        }
+    text = payload.get("text")
+    return {"0": {"text": text if isinstance(text, str) else ""}}
+
+
+def _resume_call(
+    call: Mapping[str, Any],
+    glossary: list[dict],
+    run_dir: Path,
+    arms: tuple[str, ...],
+) -> PilotResult:
+    """Rebuild a scored call from persisted P01 transcripts, zero network."""
+    from scripts.run_keyterm_pilot import _score_arms
+
+    rows_by_arm: dict[str, dict[str, Mapping[str, Any]]] = {}
+    arm_terms: dict[str, list[str]] = {}
+    for arm in arms:
+        path = run_dir / f"{arm}{TRANSCRIPT_SUFFIX}"
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        rows_by_arm[arm] = dict(_rows_from_transcript(payload))
+        config = payload.get("config") if isinstance(payload, Mapping) else None
+        terms = config.get("keyterms") if isinstance(config, Mapping) else None
+        arm_terms[arm] = [str(term) for term in terms or []]
+
+    scored_arms = _score_arms(
+        call=call["call_id"],
+        rows_by_arm=rows_by_arm,
+        reference_text=_reference_text(call),
+        glossary=glossary,
+        script=_call_script(call),
+    )
+    return PilotResult(
+        dry_run=False,
+        arms=arm_terms,
+        rows_by_arm=rows_by_arm,
+        scored_arms=scored_arms,
+    )
+
+
+def _failure_record(call_id: str, exc: BaseException) -> dict[str, str]:
+    return {
+        "call_id": call_id,
+        "error": str(exc),
+        "error_type": type(exc).__name__,
+    }
+
+
+def _merge_scored_arms(
+    results: list[PilotResult], arms: tuple[str, ...] = ARM_NAMES
+) -> list[dict[str, Any]]:
     merged: dict[str, dict[str, Any]] = {}
-    for name in ARM_NAMES:
+    for name in arms:
         rows: list[dict[str, Any]] = []
         metrics: dict[str, Any] = {}
         wers: list[float] = []
         for result in results:
+            # One call contributes at most one aggregate per arm: pooling
+            # happens across calls, never twice inside the same call.
             arm = next(
                 (a for a in result.scored_arms if a.get("name") == name), None
             )
@@ -143,7 +292,7 @@ def _merge_scored_arms(results: list[PilotResult]) -> list[dict[str, Any]]:
             metrics["wer"] = sum(wers) / len(wers)
         if rows:
             merged[name] = {"name": name, "rows": rows, "metrics": metrics}
-    return [merged[name] for name in ARM_NAMES if name in merged]
+    return [merged[name] for name in arms if name in merged]
 
 
 def run_study(
@@ -152,6 +301,9 @@ def run_study(
     *,
     execute: bool = False,
     out_dir: str | Path = "runs",
+    arms: list[str] | tuple[str, ...] | None = None,
+    resume: bool = True,
+    continue_on_error: bool = True,
     budget: int = 200,
     seed: int = 0,
     fmt: str = "transcribe",
@@ -164,68 +316,104 @@ def run_study(
     must_have: list[str] | None = None,
     run_pilot_fn: Callable[..., PilotResult] = run_pilot,
 ) -> StudyResult:
-    """Run every call in the manifest; dry-run unless ``execute=True``."""
+    """Run every call in the manifest; dry-run unless ``execute=True``.
+
+    ``resume`` only skips executed calls whose transcripts are newer than their
+    plan. ``continue_on_error`` isolates a raising call: it is recorded in
+    ``summary["failures"]`` and the remaining calls still run.
+    """
     study_id = _require_str(manifest.get("study_id"), "study_id")
     calls = manifest.get("calls")
     if not isinstance(calls, list) or not calls:
         raise ValueError("manifest 'calls' must be a non-empty list")
+    resolved_arms = _resolve_arms(arms)
 
     study_dir = Path(out_dir) / study_id
     study_dir.mkdir(parents=True, exist_ok=True)
 
     results: list[PilotResult] = []
-    for call in calls:
-        results.append(
-            run_pilot_fn(
-                call["call_id"],
-                call["audio"],
-                glossary,
-                execute=execute,
-                client=client,
-                out_dir=out_dir,
-                budget=budget,
-                seed=seed,
-                fmt=fmt,
-                language_code=language_code,
-                poll_timeout=poll_timeout,
-                reference_text=_reference_text(call),
-                script=_call_script(call),
-                pad_selected=pad_selected,
-                validator=validator,
-                critical_only=critical_only,
-                must_have=call.get("must_have") or must_have,
-            )
-        )
+    observed_calls: list[str] = []
+    failed_calls: list[str] = []
+    skipped_calls: list[str] = []
+    failures: list[dict[str, str]] = []
 
-    summary = {
+    for call in calls:
+        call_id = str(call.get("call_id"))
+        call_dir = Path(out_dir) / call_id
+
+        if execute and resume and _is_resumable(call_dir, resolved_arms):
+            try:
+                results.append(_resume_call(call, glossary, call_dir, resolved_arms))
+                observed_calls.append(call_id)
+                skipped_calls.append(call_id)
+                continue
+            except (OSError, ValueError, KeyError, TypeError, ImportError):
+                # Unreadable/partial transcripts must be re-run, never trusted.
+                pass
+
+        pilot_kwargs: dict[str, Any] = {
+            "execute": execute,
+            "client": client,
+            "out_dir": out_dir,
+            "budget": budget,
+            "seed": seed,
+            "fmt": fmt,
+            "language_code": language_code,
+            "poll_timeout": poll_timeout,
+            "reference_text": _reference_text(call),
+            "script": _call_script(call),
+            "pad_selected": pad_selected,
+            "validator": validator,
+            "critical_only": critical_only,
+            "must_have": call.get("must_have") or must_have,
+        }
+        if _accepts_kwarg(run_pilot_fn, "arms"):
+            pilot_kwargs["arms"] = list(resolved_arms)
+        try:
+            results.append(run_pilot_fn(call_id, call["audio"], glossary, **pilot_kwargs))
+        except Exception as exc:
+            failures.append(_failure_record(call_id, exc))
+            failed_calls.append(call_id)
+            if not continue_on_error:
+                raise
+            continue
+        observed_calls.append(call_id)
+
+    summary: dict[str, Any] = {
         "study_id": study_id,
         "calls": len(results),
         "dry_run": not execute,
+        "failures": failures,
+        "skipped": skipped_calls,
     }
     if not execute:
-        (study_dir / "summary.json").write_text(
-            json.dumps(summary, indent=2), encoding="utf-8"
+        _write_summary(study_dir / "summary.json", summary)
+        return StudyResult(
+            dry_run=True,
+            call_results=results,
+            summary=summary,
+            failed_calls=failed_calls,
+            skipped_calls=skipped_calls,
         )
-        return StudyResult(dry_run=True, call_results=results, summary=summary)
 
-    arms = _merge_scored_arms(results)
+    merged_arms = _merge_scored_arms(results, resolved_arms)
     from lexiforge.report.keyterm_health import build_report, render_markdown
 
     report = build_report(
         call_id=study_id,
-        arms=arms,
+        arms=merged_arms,
         provenance={
             "study_id": study_id,
-            "calls": [str(c["call_id"]) for c in calls],
+            "calls": observed_calls,
             "format": fmt,
             "language_code": language_code,
             "budget": budget,
             "seed": seed,
         },
         prereg={
-            "arms": list(ARM_NAMES),
+            "arms": list(resolved_arms),
             "budget": budget,
-            "n_calls": len(results),
+            "n_calls": len(observed_calls),
         },
     )
     markdown = render_markdown(report)
@@ -234,19 +422,26 @@ def run_study(
     summary.update(
         {
             "verdict": report.get("verdict"),
-            "n_calls": report.get("n_calls"),
+            # Observed calls only: a planned-but-failed call is not evidence.
+            "n_calls": report.get("n_calls") or len(observed_calls),
             "report": str(report_path),
         }
     )
-    (study_dir / "summary.json").write_text(
-        json.dumps(summary, indent=2), encoding="utf-8"
-    )
+    _write_summary(study_dir / "summary.json", summary)
     return StudyResult(
         dry_run=False,
         call_results=results,
         report_markdown=markdown,
         report_path=report_path,
         summary=summary,
+        failed_calls=failed_calls,
+        skipped_calls=skipped_calls,
+    )
+
+
+def _write_summary(path: Path, summary: Mapping[str, Any]) -> None:
+    path.write_text(
+        json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8"
     )
 
 
