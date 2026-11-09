@@ -32,6 +32,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from lexiforge.study.manifest import load_manifest  # noqa: E402 - re-exported
 from scripts.run_keyterm_pilot import ARM_NAMES, PilotResult, run_pilot  # noqa: E402
 
 __all__ = ["StudyResult", "load_manifest", "run_study", "main"]
@@ -50,53 +51,6 @@ def _require_str(value: Any, field_name: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"manifest field '{field_name}' must be a non-empty string")
     return value.strip()
-
-
-def load_manifest(path: str | Path) -> dict[str, Any]:
-    """Load and validate the real-audio intake manifest."""
-    data = json.loads(Path(path).read_text(encoding="utf-8"))
-    if not isinstance(data, dict):
-        raise ValueError("manifest must be a JSON object")
-    study_id = _require_str(data.get("study_id"), "study_id")
-    calls = data.get("calls")
-    if not isinstance(calls, list) or not calls:
-        raise ValueError("manifest 'calls' must be a non-empty list")
-
-    normalized: list[dict[str, Any]] = []
-    for index, call in enumerate(calls):
-        if not isinstance(call, dict):
-            raise ValueError(f"calls[{index}] must be an object")
-        call_id = _require_str(call.get("call_id"), f"calls[{index}].call_id")
-        audio = _require_str(call.get("audio"), f"calls[{index}].audio")
-        reference = call.get("reference")
-        reference_text = call.get("reference_text")
-        if not reference and not reference_text:
-            raise ValueError(
-                f"calls[{index}] needs 'reference' (path) or 'reference_text'"
-            )
-        try:
-            utterances = int(call.get("utterances", 1))
-        except (TypeError, ValueError) as exc:
-            raise ValueError(f"calls[{index}].utterances must be an integer") from exc
-        if utterances < 1:
-            raise ValueError(f"calls[{index}].utterances must be >= 1")
-        normalized.append(
-            {
-                "call_id": call_id,
-                "audio": audio,
-                "reference": reference,
-                "reference_text": reference_text,
-                "call_type": call.get("call_type") or "general",
-                "mismatched_domain": call.get("mismatched_domain"),
-                "utterances": utterances,
-                "must_have": [
-                    str(item)
-                    for item in (call.get("must_have") or [])
-                    if isinstance(item, str)
-                ],
-            }
-        )
-    return {"study_id": study_id, "calls": normalized}
 
 
 def _reference_text(call: Mapping[str, Any]) -> str:
