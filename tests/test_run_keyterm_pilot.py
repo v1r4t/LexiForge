@@ -6,6 +6,7 @@ import json
 
 import pytest
 
+from lexiforge.canon import CANON_VERSION
 from scripts.run_keyterm_pilot import ARM_NAMES, run_pilot
 
 CALL = "c00"
@@ -170,6 +171,80 @@ def test_execute_validates_before_each_create_and_runs_four_jobs(tmp_path):
 
     # One file per job.
     assert all(len(files) == 1 for _, files in client.created)
+
+
+def test_dry_run_writes_no_arm_transcripts(tmp_path, monkeypatch):
+    monkeypatch.delenv("GNANI_API_KEY", raising=False)
+    out_dir = tmp_path / "runs"
+
+    result = run_pilot(
+        CALL,
+        _audio(tmp_path),
+        GLOSSARY,
+        execute=False,
+        arms_builder=lambda **kwargs: _arms(kwargs["budget"]),
+        out_dir=out_dir,
+    )
+
+    assert result.dry_run is True
+    assert sorted(entry.name for entry in (out_dir / CALL).iterdir()) == ["plan.json"]
+
+
+def test_execute_writes_one_transcript_per_arm(tmp_path):
+    from lexiforge.score.store import read_arm_transcript
+
+    unicode_text = "मेरा UPI फेल हुआ"
+    client = FakeClient(
+        transcripts={
+            "job-1": {"fid1": {"text": unicode_text, "detected_language_code": "hi-IN"}},
+            "job-2": {"fid2": {"text": "alpha"}},
+            "job-3": {"fid3": {"segments": [{"text": "beta"}, {"text": "gamma"}]}},
+            "job-4": {"fid4": {"text": "delta"}},
+        }
+    )
+    out_dir = tmp_path / "runs"
+
+    run_pilot(
+        CALL,
+        _audio(tmp_path),
+        GLOSSARY,
+        execute=True,
+        client=client,
+        reference_text=REFERENCE_TEXT,
+        validator=lambda config: dict(config),
+        arms_builder=lambda **kwargs: _arms(kwargs["budget"]),
+        report_builder=_report_builder({}),
+        renderer=lambda report: "report",
+        out_dir=out_dir,
+    )
+
+    run_dir = out_dir / CALL
+    names = sorted(entry.name for entry in run_dir.iterdir())
+    transcript_names = [f"{arm}.transcript.json" for arm in ARM_NAMES]
+    assert [name for name in names if name.endswith(".transcript.json")] == sorted(
+        transcript_names
+    )
+    assert names == sorted(["plan.json", "report.md", *transcript_names])
+
+    baseline = read_arm_transcript(run_dir / "baseline.transcript.json")
+    assert baseline["call_id"] == CALL
+    assert baseline["arm"] == "baseline"
+    assert baseline["job_id"] == "job-1"
+    assert baseline["status"] == "COMPLETED"
+    assert baseline["text"] == unicode_text
+    assert baseline["detected_language_code"] == "hi-IN"
+    assert baseline["config"] == {
+        "model": "prisma-v3.0",
+        "format": "transcribe",
+        "language_code": "hi-IN,en-IN",
+    }
+    assert baseline["canon_version"] == CANON_VERSION
+    assert "reference" not in baseline
+
+    mismatched = read_arm_transcript(run_dir / "mismatched-200.transcript.json")
+    assert mismatched["text"] == "beta gamma"
+    assert mismatched["job_id"] == "job-3"
+    assert len(mismatched["config"]["keyterms"]) == 200
 
 
 def test_execute_pins_format_and_language_across_arms(tmp_path):
