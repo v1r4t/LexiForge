@@ -187,6 +187,18 @@ def test_baseline_is_empty_and_every_other_arm_exact_budget():
         assert len({canon(term) for term in arms[arm]}) == BUDGET, arm
 
 
+def test_critical_selection_keeps_only_fictional_and_must_have():
+    from lexiforge.contexts.arms import _critical_entries, _index_glossary
+
+    glossary = [
+        {"term_id": "R1", "canonical": "NEFT", "origin": "real"},
+        {"term_id": "F1", "canonical": "Zorbix", "origin": "fictional"},
+    ]
+    index = _index_glossary(glossary)
+    assert [e["term_id"] for e in _critical_entries(index, None)] == ["F1"]
+    assert {e["term_id"] for e in _critical_entries(index, ["NEFT"])} == {"R1", "F1"}
+
+
 def test_selected_arm_can_skip_padding():
     natural = build_arms(
         HYPOTHESIS,

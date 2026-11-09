@@ -127,6 +127,8 @@ def _build_arms(
     budget: int,
     seed: int,
     pad_selected: bool = True,
+    critical_only: bool = False,
+    must_have=None,
 ) -> dict[str, list[str]]:
     builder = arms_builder or _lazy_import_arm_builder()
     if builder is None:
@@ -141,6 +143,8 @@ def _build_arms(
             budget=budget,
             seed=seed,
             pad_selected=pad_selected,
+            critical_only=critical_only,
+            must_have=must_have,
         )
 
     missing = [name for name in ARM_NAMES if name not in built]
@@ -434,6 +438,8 @@ def run_pilot(
     reference_text=None,
     script=None,
     pad_selected=True,
+    critical_only=False,
+    must_have=None,
     arms_builder=None,
     validator=None,
     report_builder=None,
@@ -470,6 +476,8 @@ def run_pilot(
             call_type,
             arms_builder=arms_builder,
             pad_selected=pad_selected,
+            critical_only=critical_only,
+            must_have=must_have,
             budget=budget,
             seed=seed,
         )
@@ -520,6 +528,8 @@ def run_pilot(
         budget=budget,
         seed=seed,
         pad_selected=pad_selected,
+        critical_only=critical_only,
+        must_have=must_have,
     )
     plan["arms"] = arms
     plan["selection_source"] = "baseline pass-1 transcript"

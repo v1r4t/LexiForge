@@ -279,9 +279,41 @@ def _pad(
     return chosen
 
 
+def _critical_entries(
+    index: _GlossaryIndex, must_have: Optional[Iterable[str]]
+) -> list[dict]:
+    """Entries eligible for the critical-term arm: fictional + must-have."""
+    must_surfaces = (
+        set(_resolve_terms(must_have, index, name="must_have")) if must_have else set()
+    )
+    must_ids = {str(item) for item in (must_have or [])}
+    chosen: list[dict] = []
+    for entry in index.entries:
+        tid = _entry_id(entry, 0)
+        surface = index.id_to_surface.get(tid) or _entry_surface(entry, tid)
+        if (
+            entry.get("origin") == "fictional"
+            or surface in must_surfaces
+            or tid in must_ids
+        ):
+            chosen.append(entry)
+    return chosen
+
+
 def _natural_selected(
-    hypothesis: Any, index: _GlossaryIndex, call_type: str, budget: int
+    hypothesis: Any,
+    index: _GlossaryIndex,
+    call_type: str,
+    budget: int,
+    *,
+    critical_only: bool = False,
+    must_have: Optional[Iterable[str]] = None,
 ) -> list[str]:
+    if critical_only:
+        entries = _critical_entries(index, must_have)
+        if not entries:
+            return []
+        index = _index_glossary(entries)
     selector_glossary = to_selector_glossary(index.entries)
     ids = select(hypothesis, selector_glossary, call_type, budget=budget)
     return [index.id_to_surface.get(tid, tid) for tid in ids]
@@ -508,6 +540,8 @@ def build_arms(
     by_category: Optional[Mapping[str, Iterable[str]]] = None,
     hard_negative_builder: Optional[HardNegativeBuilder] = None,
     pad_selected: bool = True,
+    critical_only: bool = False,
+    must_have: Optional[Iterable[str]] = None,
 ) -> dict[str, list[str]]:
     """Build the five keyterm lists for one call.
 
@@ -528,12 +562,26 @@ def build_arms(
 
     index = _index_glossary(glossary)
     if expected_terms is None:
-        expected = _natural_selected(hypothesis, index, call_type, budget)
+        expected = _natural_selected(
+            hypothesis,
+            index,
+            call_type,
+            budget,
+            critical_only=critical_only,
+            must_have=must_have,
+        )
     else:
         expected = _resolve_terms(expected_terms, index, name="expected_terms")
         expected.sort(key=lambda term: (canon(term), term))
 
-    natural = _natural_selected(hypothesis, index, call_type, budget)
+    natural = _natural_selected(
+        hypothesis,
+        index,
+        call_type,
+        budget,
+        critical_only=critical_only,
+        must_have=must_have,
+    )
     selected = _pad(natural, budget, index.pool) if pad_selected else natural
 
     return {
@@ -571,6 +619,8 @@ def build_arm_configs(
     by_category: Optional[Mapping[str, Iterable[str]]] = None,
     hard_negative_builder: Optional[HardNegativeBuilder] = None,
     pad_selected: bool = True,
+    critical_only: bool = False,
+    must_have: Optional[Iterable[str]] = None,
 ) -> dict[str, dict]:
     """Build one validated context config per arm.
 
@@ -588,6 +638,8 @@ def build_arm_configs(
         by_category=by_category,
         hard_negative_builder=hard_negative_builder,
         pad_selected=pad_selected,
+        critical_only=critical_only,
+        must_have=must_have,
     )
     configs: dict[str, dict] = {}
     for arm in ARMS:

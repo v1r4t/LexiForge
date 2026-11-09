@@ -89,6 +89,11 @@ def load_manifest(path: str | Path) -> dict[str, Any]:
                 "call_type": call.get("call_type") or "general",
                 "mismatched_domain": call.get("mismatched_domain"),
                 "utterances": utterances,
+                "must_have": [
+                    str(item)
+                    for item in (call.get("must_have") or [])
+                    if isinstance(item, str)
+                ],
             }
         )
     return {"study_id": study_id, "calls": normalized}
@@ -155,6 +160,8 @@ def run_study(
     client: Any = None,
     validator: Any = None,
     pad_selected: bool = True,
+    critical_only: bool = False,
+    must_have: list[str] | None = None,
     run_pilot_fn: Callable[..., PilotResult] = run_pilot,
 ) -> StudyResult:
     """Run every call in the manifest; dry-run unless ``execute=True``."""
@@ -185,6 +192,8 @@ def run_study(
                 script=_call_script(call),
                 pad_selected=pad_selected,
                 validator=validator,
+                critical_only=critical_only,
+                must_have=call.get("must_have") or must_have,
             )
         )
 
@@ -263,6 +272,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Use synchronous REST STT instead of the Batch API",
     )
+    parser.add_argument(
+        "--critical-only",
+        action="store_true",
+        help="Select only fictional/brand and must-have terms",
+    )
     args = parser.parse_args(argv)
 
     from lexiforge.cli import _load_dotenv
@@ -294,6 +308,7 @@ def main(argv: list[str] | None = None) -> int:
         pad_selected=not args.selected_natural,
         client=client,
         validator=validator,
+        critical_only=args.critical_only,
     )
     if result.dry_run:
         print(f"Dry run for {manifest['study_id']}: {len(result.call_results)} call plans")
