@@ -10,6 +10,7 @@ from lexiforge.api.gnani_v3 import (
     classify_error,
     validate_batch_config,
     validate_keyterms,
+    validate_rest_config,
     validate_speaker_names,
     validate_substitution_map,
     validate_topic,
@@ -157,3 +158,26 @@ class TestClassifyError:
         assert classify_error(503) == GnaniErrorKind.SERVER
         assert classify_error(408) == GnaniErrorKind.NETWORK
         assert classify_error(504) == GnaniErrorKind.NETWORK
+
+
+class TestValidateRestConfig:
+    def test_transliterate_and_combined_context_allowed(self):
+        cfg = validate_rest_config(
+            {
+                "model": "prisma-v3.0",
+                "language_code": "hi-IN",
+                "format": "transliterate",
+                "keyterms": ["UPI", "NEFT"],
+                "speaker_names": ["Priya"],
+            }
+        )
+        assert cfg["format"] == "transliterate"
+        assert cfg["keyterms"] == ["UPI", "NEFT"]
+        assert cfg["speaker_names"] == ["Priya"]
+
+    def test_short_topic_allowed_on_rest(self):
+        assert validate_rest_config({"topic": "hi"})["topic"] == "hi"
+
+    def test_bad_format_rejected(self):
+        with pytest.raises(GnaniValidationError):
+            validate_rest_config({"format": "bogus"})

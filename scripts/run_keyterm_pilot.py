@@ -126,6 +126,7 @@ def _build_arms(
     arms_builder: Callable[..., dict[str, list[str]]] | None,
     budget: int,
     seed: int,
+    pad_selected: bool = True,
 ) -> dict[str, list[str]]:
     builder = arms_builder or _lazy_import_arm_builder()
     if builder is None:
@@ -139,6 +140,7 @@ def _build_arms(
             call_type=call_type,
             budget=budget,
             seed=seed,
+            pad_selected=pad_selected,
         )
 
     missing = [name for name in ARM_NAMES if name not in built]
@@ -431,6 +433,7 @@ def run_pilot(
     poll_timeout=1800,
     reference_text=None,
     script=None,
+    pad_selected=True,
     arms_builder=None,
     validator=None,
     report_builder=None,
@@ -466,6 +469,7 @@ def run_pilot(
             glossary,
             call_type,
             arms_builder=arms_builder,
+            pad_selected=pad_selected,
             budget=budget,
             seed=seed,
         )
@@ -515,6 +519,7 @@ def run_pilot(
         arms_builder=arms_builder,
         budget=budget,
         seed=seed,
+        pad_selected=pad_selected,
     )
     plan["arms"] = arms
     plan["selection_source"] = "baseline pass-1 transcript"

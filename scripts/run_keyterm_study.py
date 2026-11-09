@@ -153,6 +153,8 @@ def run_study(
     language_code: str = "hi-IN,en-IN",
     poll_timeout: float = 1800,
     client: Any = None,
+    validator: Any = None,
+    pad_selected: bool = True,
     run_pilot_fn: Callable[..., PilotResult] = run_pilot,
 ) -> StudyResult:
     """Run every call in the manifest; dry-run unless ``execute=True``."""
@@ -181,6 +183,8 @@ def run_study(
                 poll_timeout=poll_timeout,
                 reference_text=_reference_text(call),
                 script=_call_script(call),
+                pad_selected=pad_selected,
+                validator=validator,
             )
         )
 
@@ -249,11 +253,31 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--format", dest="fmt", default="transcribe")
     parser.add_argument("--language-code", default="hi-IN,en-IN")
+    parser.add_argument(
+        "--selected-natural",
+        action="store_true",
+        help="Do not pad the selected arm to the full budget",
+    )
+    parser.add_argument(
+        "--rest",
+        action="store_true",
+        help="Use synchronous REST STT instead of the Batch API",
+    )
     args = parser.parse_args(argv)
 
     from lexiforge.cli import _load_dotenv
 
     _load_dotenv()
+    client = None
+    validator = None
+    if args.rest:
+        from lexiforge.api.rest_stt import RestSttClient
+
+        client = RestSttClient()
+        from lexiforge.api.gnani_v3 import validate_rest_config
+
+        validator = validate_rest_config
+
     manifest = load_manifest(args.manifest)
     glossary = json.loads(Path(args.glossary).read_text(encoding="utf-8"))
     if isinstance(glossary, dict):
@@ -267,6 +291,9 @@ def main(argv: list[str] | None = None) -> int:
         seed=args.seed,
         fmt=args.fmt,
         language_code=args.language_code,
+        pad_selected=not args.selected_natural,
+        client=client,
+        validator=validator,
     )
     if result.dry_run:
         print(f"Dry run for {manifest['study_id']}: {len(result.call_results)} call plans")

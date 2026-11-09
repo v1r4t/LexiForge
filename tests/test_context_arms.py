@@ -187,6 +187,24 @@ def test_baseline_is_empty_and_every_other_arm_exact_budget():
         assert len({canon(term) for term in arms[arm]}) == BUDGET, arm
 
 
+def test_selected_arm_can_skip_padding():
+    natural = build_arms(
+        HYPOTHESIS,
+        _glossary(),
+        "payments",
+        budget=BUDGET,
+        seed=0,
+        expected_terms=EXPECTED_IDS,
+        hard_negative_builder=_builder()[0],
+        pad_selected=False,
+    )
+    padded = _arms()
+    assert len(natural["selected-200"]) < BUDGET
+    assert len(padded["selected-200"]) == BUDGET
+    for arm in ("mismatched-200", "hard-negative-200"):
+        assert len(natural[arm]) == BUDGET
+
+
 def test_arms_return_canonical_surfaces_not_ids():
     glossary = _glossary()
     ids = {entry["term_id"] for entry in glossary}

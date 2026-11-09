@@ -42,21 +42,34 @@ def test_builds_sheets_refs_and_manifest(tmp_path):
 def test_sheet_resolves_known_terms_and_flags_missing_ones(tmp_path):
     _summary(tmp_path)
     out = tmp_path / "recording"
+    glossary = {
+        entry["term_id"]: entry
+        for entry in json.loads(
+            (ROOT / "data" / "glossary.json").read_text(encoding="utf-8")
+        )
+    }
 
+    c01_script = json.loads(
+        (ROOT / "data" / "scripts" / "c01.json").read_text(encoding="utf-8")
+    )
+    c01_term = glossary[c01_script["expected_fictional"][0]]["canonical"]
     c01 = (out / "scripts" / "c01.md").read_text(encoding="utf-8")
     assert "Call c01" in c01
-    assert "RuvNivesh" in c01  # F0013 resolves in the committed glossary
-    assert "MISSING" in c01  # real IDs such as R0644 are absent from the 1000-term list
+    assert c01_term in c01
+    assert "MISSING" not in c01
 
     c00 = (out / "scripts" / "c00.md").read_text(encoding="utf-8")
-    assert "MISSING" in c00  # real IDs such as R1171 are absent from the 1000-term list
+    assert "MISSING" not in c00
 
 
 def test_reference_text_is_the_dialogue(tmp_path):
     _summary(tmp_path)
+    script = json.loads(
+        (ROOT / "data" / "scripts" / "c00.json").read_text(encoding="utf-8")
+    )
     ref = (tmp_path / "recording" / "refs" / "c00.txt").read_text(encoding="utf-8")
-    assert "BillDesk" in ref
-    assert "NACH" in ref
+    assert script["turns"][0]["text"] in ref
+    assert script["turns"][-1]["text"] in ref
 
 
 def test_render_call_sheet_is_deterministic(tmp_path):

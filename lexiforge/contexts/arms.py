@@ -507,6 +507,7 @@ def build_arms(
     static_terms: Optional[Iterable[str]] = None,
     by_category: Optional[Mapping[str, Iterable[str]]] = None,
     hard_negative_builder: Optional[HardNegativeBuilder] = None,
+    pad_selected: bool = True,
 ) -> dict[str, list[str]]:
     """Build the five keyterm lists for one call.
 
@@ -514,7 +515,8 @@ def build_arms(
     controls receive canonical surfaces. It defaults to the selected arm's
     natural (pre-pad) set, which keeps the builder usable without ground truth.
     ``by_category`` overrides the adapter that groups glossary entries by their
-    ``category`` field for the mismatched arm.
+    ``category`` field for the mismatched arm. Set ``pad_selected=False`` to
+    keep the selector's natural list; the wrong-list controls stay exact-budget.
     """
     _assert_no_reference(hypothesis, where="hypothesis")
     _assert_no_reference(glossary, where="glossary")
@@ -531,11 +533,8 @@ def build_arms(
         expected = _resolve_terms(expected_terms, index, name="expected_terms")
         expected.sort(key=lambda term: (canon(term), term))
 
-    selected = _pad(
-        _natural_selected(hypothesis, index, call_type, budget),
-        budget,
-        index.pool,
-    )
+    natural = _natural_selected(hypothesis, index, call_type, budget)
+    selected = _pad(natural, budget, index.pool) if pad_selected else natural
 
     return {
         "baseline": [],
@@ -571,6 +570,7 @@ def build_arm_configs(
     static_terms: Optional[Iterable[str]] = None,
     by_category: Optional[Mapping[str, Iterable[str]]] = None,
     hard_negative_builder: Optional[HardNegativeBuilder] = None,
+    pad_selected: bool = True,
 ) -> dict[str, dict]:
     """Build one validated context config per arm.
 
@@ -587,6 +587,7 @@ def build_arm_configs(
         static_terms=static_terms,
         by_category=by_category,
         hard_negative_builder=hard_negative_builder,
+        pad_selected=pad_selected,
     )
     configs: dict[str, dict] = {}
     for arm in ARMS:

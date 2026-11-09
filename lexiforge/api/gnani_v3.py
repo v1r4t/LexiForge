@@ -6,6 +6,7 @@ from enum import Enum
 from typing import Any, Dict, List, Mapping
 
 FORMATS = ("verbatim", "transcribe", "codemix")
+REST_FORMATS = FORMATS + ("transliterate",)
 
 
 class GnaniValidationError(ValueError):
@@ -57,10 +58,10 @@ def validate_keyterms(terms: Any) -> List[str]:
     return result
 
 
-def validate_topic(topic: Any) -> str:
+def validate_topic(topic: Any, *, min_length: int = 30) -> str:
     if not isinstance(topic, str):
         raise GnaniValidationError(issues=["topic must be a string"])
-    if len(topic) < 30 or len(topic) > 1600:
+    if len(topic) < min_length or len(topic) > 1600:
         raise GnaniValidationError(issues=["topic length out of range"])
     return topic
 
@@ -169,6 +170,37 @@ def validate_batch_config(config: Any) -> Dict[str, Any]:
     elif "substitutions" in cfg and cfg["substitutions"] is not None:
         cfg["substitution_map"] = validate_substitution_map(cfg["substitutions"])
 
+    return cfg
+
+
+def validate_rest_config(config: Any) -> Dict[str, Any]:
+    """Validate the REST (synchronous) request config.
+
+    REST supports ``transliterate`` and allows any combination of keyterms,
+    topic, previous_text and speaker_names, unlike Batch.
+    """
+    if config is None:
+        raise GnaniValidationError(issues=["config required"])
+    if isinstance(config, Mapping):
+        cfg = dict(config)
+    else:
+        raise GnaniValidationError(issues=["config must be a dict"])
+
+    cfg.pop("canon_version", None)
+    fmt = cfg.get("format") or cfg.get("transcription_format") or cfg.get("mode")
+    if fmt is not None and fmt not in REST_FORMATS:
+        raise GnaniValidationError(issues=["invalid format"])
+
+    keyterms = cfg.get("keyterms") or cfg.get("vocabulary") or cfg.get("context") or cfg.get("keywords")
+    if keyterms is not None:
+        cfg["keyterms"] = validate_keyterms(keyterms)
+    if cfg.get("topic") is not None:
+        cfg["topic"] = validate_topic(cfg["topic"], min_length=1)
+    speakers = cfg.get("speaker_names") or cfg.get("speakers") or cfg.get("speakerNames")
+    if speakers is not None:
+        cfg["speaker_names"] = validate_speaker_names(speakers)
+    if cfg.get("substitution_map") is not None:
+        cfg["substitution_map"] = validate_substitution_map(cfg["substitution_map"])
     return cfg
 
 
