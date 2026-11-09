@@ -5,6 +5,10 @@ significance test: the 95% CI lower bound of (selected - baseline) real-term
 recall must stay at or above the recall margin, and the 95% CI upper bound of
 the paired insertions-per-utterance delta must stay at or below the insertion
 cap. Lift is reported as a descriptive secondary estimate only.
+
+A/B endpoint comparisons (design §2, §7) are descriptive rows in their own
+table and never feed ``verdict()``, which stays on the selected-vs-baseline
+non-inferiority pair.
 """
 
 from __future__ import annotations
@@ -400,6 +404,106 @@ def _find_selected(arms: Iterable[Mapping[str, Any]]) -> Mapping[str, Any] | Non
     return None
 
 
+def _comparison_row(
+    arm_a: Mapping[str, Any],
+    arm_b: Mapping[str, Any],
+    metric: str,
+    *,
+    cluster_key: str,
+    n_boot: int,
+    seed: int,
+) -> dict:
+    """One A/B endpoint row; the delta is always ``arm_b - arm_a``."""
+    delta = paired_delta(
+        arm_a["rows"],
+        arm_b["rows"],
+        metric,
+        cluster_key=cluster_key,
+        n_boot=n_boot,
+        seed=seed,
+    )
+    return {
+        "arm_a": arm_a["name"],
+        "arm_b": arm_b["name"],
+        "metric": metric,
+        "comparison": f"{arm_b['name']} vs {arm_a['name']}",
+        "deltas": delta["deltas"],
+        "n": delta["n"],
+        "mean": delta["mean"],
+        "ci_low": delta["ci_low"],
+        "ci_high": delta["ci_high"],
+    }
+
+
+def _resolve_comparisons(
+    arms: Iterable[Mapping[str, Any]],
+    comparisons: Iterable[tuple[str, str, str]] | None,
+    *,
+    default_pair: tuple[Mapping[str, Any], Mapping[str, Any]] | None,
+    cluster_key: str,
+    n_boot: int,
+    seed: int,
+) -> list[dict]:
+    """Build A/B endpoint rows, defaulting to today's paired comparison.
+
+    Explicit arm names are resolved exactly (never through
+    ``_find_selected``), so a requested pair is not silently swapped for the
+    first arm whose name contains "selected".
+    """
+    arms = list(arms)
+    if comparisons is None:
+        if default_pair is None:
+            return []
+        arm_a, arm_b = default_pair
+        return [
+            _comparison_row(
+                arm_a,
+                arm_b,
+                metric,
+                cluster_key=cluster_key,
+                n_boot=n_boot,
+                seed=seed,
+            )
+            for metric in ("real_recall", "insertions_per_utterance")
+        ]
+
+    rows: list[dict] = []
+    for spec in comparisons:
+        if not isinstance(spec, (list, tuple)) or len(spec) != 3:
+            raise ValueError(
+                "each comparison must be an (arm_a, arm_b, metric) triple"
+            )
+        arm_a_name, arm_b_name, metric = spec
+        if not all(
+            isinstance(value, str) and value
+            for value in (arm_a_name, arm_b_name, metric)
+        ):
+            raise ValueError("comparison arm names and metric must be non-empty strings")
+        arm_a = _find_arm(arms, arm_a_name)
+        arm_b = _find_arm(arms, arm_b_name)
+        unknown = [
+            name
+            for name, arm in ((arm_a_name, arm_a), (arm_b_name, arm_b))
+            if arm is None
+        ]
+        if unknown:
+            known = ", ".join(arm["name"] for arm in arms) or "none"
+            raise ValueError(
+                f"unknown arm(s) in comparison: {', '.join(unknown)}; known arms: {known}"
+            )
+        rows.append(
+            _comparison_row(
+                arm_a,
+                arm_b,
+                metric,
+                cluster_key=cluster_key,
+                n_boot=n_boot,
+                seed=seed,
+            )
+        )
+    return rows
+
+
 def _cluster_key(prereg: Mapping[str, Any]) -> str:
     key = prereg.get("cluster_key", "call_id")
     return key if isinstance(key, str) else "call_id"
@@ -537,6 +641,7 @@ def build_report(
     arms: Iterable[Mapping[str, Any]],
     provenance: Mapping[str, Any],
     prereg: Mapping[str, Any],
+    comparisons: Iterable[tuple[str, str, str]] | None = None,
 ) -> dict:
     arms_list = [_normalize_arm(arm) for arm in (arms or [])]
     provenance = dict(provenance or {})
@@ -550,22 +655,26 @@ def build_report(
         "metrics_summary": [_summarize_arm(arm) for arm in arms_list],
         "n_calls": _n_calls(arms_list, prereg),
         "paired_deltas": {},
+        "comparisons": [],
         "term_level": _term_level(arms_list),
         "lift": {},
         "claims_register": {"verified": [], "inferred": [], "unverified": []},
         "disclosures": dict(_DEFAULT_DISCLOSURES),
     }
 
+    cluster_key = _cluster_key(prereg)
+    seed = prereg.get("seed", provenance.get("seed", 0))
+    n_boot = prereg.get("n_boot", 10000)
+    if not isinstance(seed, int) or isinstance(seed, bool):
+        seed = 0
+    if not isinstance(n_boot, int) or isinstance(n_boot, bool) or n_boot < 1:
+        n_boot = 10000
+
     baseline = _find_arm(arms_list, "baseline")
     selected = _find_selected(arms_list)
+    default_pair = None
     if baseline and selected and baseline is not selected:
-        cluster_key = _cluster_key(prereg)
-        seed = prereg.get("seed", provenance.get("seed", 0))
-        n_boot = prereg.get("n_boot", 10000)
-        if not isinstance(seed, int) or isinstance(seed, bool):
-            seed = 0
-        if not isinstance(n_boot, int) or isinstance(n_boot, bool) or n_boot < 1:
-            n_boot = 10000
+        default_pair = (baseline, selected)
         for metric in ("real_recall", "insertions_per_utterance"):
             delta = paired_delta(
                 baseline["rows"],
@@ -584,6 +693,15 @@ def build_report(
                 int(delta["n"]) for delta in report["paired_deltas"].values()
             )
         report["lift"] = _lift_from(report["paired_deltas"].get("real_recall"))
+
+    report["comparisons"] = _resolve_comparisons(
+        arms_list,
+        comparisons,
+        default_pair=default_pair,
+        cluster_key=cluster_key,
+        n_boot=n_boot,
+        seed=seed,
+    )
 
     report["verdict"] = verdict(report)
     report["verdict_reason"] = _verdict_reason(report)
@@ -738,6 +856,23 @@ def render_markdown(report: Mapping[str, Any]) -> str:
             )
     else:
         lines.append("No paired deltas recorded for this run.")
+
+    lines.extend(["", "### Endpoints (A/B)", ""])
+    comparisons = report.get("comparisons") or []
+    if comparisons:
+        lines.extend(
+            [
+                "| Comparison | Metric | Delta | 95% CI | Calls |",
+                "|---|---|---|---|---|",
+            ]
+        )
+        for row in comparisons:
+            lines.append(
+                f"| {row.get('comparison', 'n/a')} | {row.get('metric', 'n/a')} | "
+                f"{_fmt_signed(row.get('mean'))} | {_fmt_ci(row)} | {row.get('n', 0)} |"
+            )
+    else:
+        lines.append("No A/B endpoint comparisons recorded for this run.")
 
     lines.extend(["", "## 3. Term-level appendix", ""])
     term_level = report.get("term_level") or {}
