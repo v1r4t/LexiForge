@@ -138,6 +138,9 @@ def _first_present(payload: Mapping, *keys: str) -> Any:
 
 def _unwrap(payload: Any) -> Any:
     if isinstance(payload, Mapping):
+        jobs = payload.get("jobs")
+        if isinstance(jobs, list):
+            return jobs
         for key in ("data", "job", "result"):
             nested = payload.get(key)
             if isinstance(nested, Mapping) and (
@@ -314,6 +317,67 @@ class BatchClient:
         if not isinstance(payload, Mapping):
             raise BatchApiError("get_job returned a non-object payload.", payload=payload)
         return dict(_unwrap(payload))
+
+    def list_jobs(self, *, status: str | None = None, limit: int = 100) -> list[dict]:
+        """List server-side jobs, newest first (read-only; retries 429/504).
+
+        Admin counterpart to ``create_job`` for reconciliation. ``limit`` is
+        sent to the server and also caps the returned list defensively.
+        """
+        params: dict[str, Any] = {"limit": int(limit)}
+        if status:
+            params["status"] = status
+        response = self._call(
+            "GET",
+            self._job_url(),
+            action="list_jobs",
+            retry_transient=True,
+            params=params,
+        )
+        payload = _unwrap(self._json(response, "list_jobs"))
+        if isinstance(payload, Mapping):
+            for key in ("jobs", "data", "items", "results"):
+                if isinstance(payload.get(key), list):
+                    payload = payload[key]
+                    break
+        if not isinstance(payload, list):
+            raise BatchApiError("list_jobs returned an unexpected payload.", payload=payload)
+        return [dict(item) for item in payload if isinstance(item, Mapping)][: int(limit)]
+
+    def cancel_job(self, job_id: str) -> str:
+        """Cancel a job, idempotently returning its status.
+
+        A job already in a terminal state is left alone: no cancel POST is
+        sent and the current status is returned. Otherwise the cancel POST is
+        attempted once and only a 429 (unambiguously not accepted) is retried;
+        a 5xx or network failure is raised because the cancel may have landed
+        and must not be double-sent (design.md §4, §10).
+        """
+        current = self.job_status(self.get_job(job_id))
+        if current in TERMINAL_STATUSES:
+            return current or "CANCELLED"
+        response: httpx.Response | None = None
+        for attempt in range(2):
+            try:
+                response = self._call(
+                    "POST",
+                    self._job_url(job_id, "cancel"),
+                    action="cancel_job",
+                    retry_transient=False,
+                )
+                break
+            except BatchApiError as exc:
+                if exc.status_code == 429 and attempt == 0:
+                    time.sleep(self._backoff(attempt))
+                    continue
+                raise
+        if response is None:  # pragma: no cover - the loop always returns or raises
+            raise BatchApiError("cancel_job failed without a response.")
+        if not response.content:
+            return "CANCELLED"
+        payload = _unwrap(self._json(response, "cancel_job"))
+        status = self.job_status(payload) if isinstance(payload, Mapping) else None
+        return status or "CANCELLED"
 
     def job_status(self, job: Mapping) -> str | None:
         status = _first_present(_unwrap(job), "status", "state", "job_status")
