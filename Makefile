@@ -1,4 +1,14 @@
-.PHONY: install test lint format run-api build-web run-dev docker-build docker-up docker-down clean doctor info export-web
+.PHONY: install test lint format run-api build-web run-dev docker-build docker-up docker-down clean doctor info export-web check-data study study-execute repro report-page
+
+# Overridable inputs for the keyterm-study targets. The template manifest is a
+# zero-audio dry run; point MANIFEST at recording/manifest.json once human
+# audio exists.
+MANIFEST ?= recording/manifest.template.json
+GLOSSARY ?= data/glossary.json
+RUNS ?= runs
+STUDY_ID ?= gnani-bfsi-recording-1
+REPORT ?= $(RUNS)/$(STUDY_ID)/report.json
+REPORT_PAGE ?= web/data/report/sample/index.html
 
 install:
 	pip install -e ".[dev]"
@@ -28,6 +38,22 @@ run-dev: build-web
 
 export-web:
 	python scripts/export_web_data.py --transcripts transcripts --refs refs --out web/data
+
+# --- keyterm study ---------------------------------------------------------
+check-data:
+	python scripts/check_data_consistency.py
+
+study:
+	python scripts/run_keyterm_study.py $(MANIFEST) --glossary $(GLOSSARY) --out-dir $(RUNS)
+
+study-execute:
+	python scripts/run_keyterm_study.py $(MANIFEST) --glossary $(GLOSSARY) --out-dir $(RUNS) --execute
+
+repro:
+	python scripts/reproduce_study.py $(MANIFEST) --runs-dir $(RUNS) --out $(RUNS)/reproduce.json
+
+report-page:
+	python scripts/build_report_page.py --report $(REPORT) --out $(REPORT_PAGE)
 
 # --- containers ------------------------------------------------------------
 docker-build:

@@ -2,27 +2,59 @@
 
 Solo builder. Deadline 2026-11-10. Cost is not the constraint; human hours are (~₹190 / 7 audio-hrs, <4% of balance).
 
-## 1. Daily command sequence
+## 1. One-command runbook
 
-Only `doctor` and `canon` exist. Everything else is `[PLANNED]` — do not improvise flags; implement to this order.
+All commands run from the repository root. `make` may be absent on Windows, so
+every target has a direct equivalent — the direct command is the primary form.
+The recipes below use the same defaults as the direct commands; the variables on
+the make line only replace the literal paths shown.
 
-| Day | Step | Command |
+| Target | Does | Direct command (Windows) |
 |---|---|---|
-| Oct 29 | key + probe | `lexiforge doctor` (exists); concurrency probe `[PLANNED]` |
-| Oct 30 | glossary | `lexiforge glossary build` `[PLANNED]` → `data/glossary.json` |
-| Oct 30 | validate | `lexiforge glossary validate` `[PLANNED]` (nonce-root Levenshtein ≥3, alias-source check: authoring/transliteration/pre-freeze only, never ASR output) |
-| Oct 30 | core-200 freeze | `lexiforge core freeze` `[PLANNED]` → commit `data/core-200` equivalent; frozen, no edits after |
-| Oct 30 | assignment | `lexiforge assign --seed <SEED>` `[PLANNED]` → `data/assignment.json`; must run BEFORE author sees core-200 |
-| Oct 31 | scripts | `lexiforge scripts draft` `[PLANNED]` → `data/scripts/` |
-| Oct 31 | validate + freeze | `lexiforge scripts validate` `[PLANNED]` (10 mechanical checks: density ~1.6/utt, mismatched zero-overlap vs pinned real+fictional list, hard-negative placement) → `git commit` freeze |
-| Nov 1 | record c01–c04 | manual: `audio/c##_t##_s##_k##`, one session/call, one device, first take default, retakes quarantined |
-| Nov 1–4 | references | `lexiforge refs verify` `[PLANNED]` → `refs/` + arbitration log + deviation flag/file (~3.5 min/file; see §2 gate) |
-| Nov 2 | pilot | `lexiforge contexts build --conditions baseline,oracle-200,mismatched-200` `[PLANNED]` → `lexiforge run pass1 --calls c01-c04` → `lexiforge select` → `lexiforge run pass2` `[ALL PLANNED]`; cut fallback demo clip from pilot data same day |
-| Nov 3–4 | record c05–c20 | prefix-balanced speaker-pair rotation; substitution: same-day guide-passing replacement or drop to 3 speakers / 18 calls, documented |
-| Nov 5 | matcher freeze | `lexiforge canon` (exists) spot-checks + collision test; freeze matcher, no further canon edits |
-| Nov 6–7 | runs | `lexiforge run pass1 --all` (1 job / 100 files) → `lexiforge select` (leakage test: `refs/` unreadable, output unchanged) → `lexiforge run pass2` (~286 jobs, one/call/condition); ledger key `(condition, conversation, replicate)`; poll 15 s |
-| Nov 8 | score + analyse | `lexiforge score` `[PLANNED]` (frozen matcher, stratified) → adjudication sample → `lexiforge analyse` `[PLANNED]` (sign-flip permutation, Holm 0.025/0.05) |
-| Nov 9 | demo | static three-screen gallery; 16:00 freeze, no exceptions |
+| `make doctor` | Verify the API key and read live constraints. Costs no credits. | `python -m lexiforge.cli doctor` |
+| `make check-data` | Read-only data consistency checks (ids, sha256, assignments, docs). | `python scripts/check_data_consistency.py` |
+| `make study` | Dry-run the four-arm study over `MANIFEST`. Builds plans; zero network, zero credits. | `python scripts/run_keyterm_study.py recording/manifest.template.json --glossary data/glossary.json --out-dir runs` |
+| `make study-execute` | Run the study for real. Spends credits; requires a key. | `python scripts/run_keyterm_study.py recording/manifest.template.json --glossary data/glossary.json --out-dir runs --execute` |
+| `make repro` | Re-score recorded transcripts, re-run H1/H2, write `runs/reproduce.json`. Zero network. | `python scripts/reproduce_study.py recording/manifest.template.json --runs-dir runs --out runs/reproduce.json` |
+| `make report-page` | Render the study report to static inline-CSS HTML (no JS, no CDN). | `python scripts/build_report_page.py --report runs/gnani-bfsi-recording-1/report.json --out web/data/report/sample/index.html` |
+| `make test` | Run the test suite. | `python -m pytest tests/ -q` |
+
+`MANIFEST`, `GLOSSARY`, `RUNS`, `STUDY_ID`, `REPORT` and `REPORT_PAGE` are
+overridable on the make command line, e.g.
+`make study MANIFEST=recording/manifest.json`. When invoking a script directly,
+substitute the same values by hand. `make repro` assumes an executed study has
+already written transcripts under `RUNS`; `make report-page` reads the JSON
+report named by `REPORT` (the dict `build_report` returns).
+
+If one of the scripts above is missing, that checkout predates its merge — the
+target is declared ahead of the script. Do not improvise replacement flags.
+
+`study`, `study-execute` and `repro` need reference files next to the manifest.
+The committed `recording/manifest.template.json` points at `recording/refs/`,
+which is gitignored and absent on a clean checkout. Run the pack command in the
+20-call dry-run block below first; it writes the references. Without them the
+runner stops with `FileNotFoundError`.
+
+### 20-call dry run (zero credits, no audio)
+
+This is the full prepare-only pass: build the 20-call recording pack, then let
+the study runner plan all four arms for every call. It does not read audio and
+does not call the API.
+
+```bash
+python scripts/build_recording_pack.py --calls c00,c01,c02,c03,c04,c05,c06,c07,c08,c09,c10,c11,c12,c13,c14,c15,c16,c17,c18,c19
+python scripts/run_keyterm_study.py recording/manifest.template.json --glossary data/glossary.json --out-dir runs
+```
+
+Expect `runs/gnani-bfsi-recording-1/summary.json` with `"dry_run": true` and
+`"calls": 20`. The pack is a template: references and metadata are filled in,
+audio paths point at `recording/audio/<call>.wav` and stay unused until human
+audio is recorded. The pack is written under `recording/`, so the tracked
+`recording/manifest.template.json` becomes the 20-call version and
+`recording/scripts/` gains the new sheets — review that diff before committing.
+When audio exists, rename the filled manifest to `recording/manifest.json`, run
+`python scripts/record_check.py recording/manifest.json`, then repeat the study
+command with `--execute`.
 
 ## 2. Blind-verification gate (BLOCKING)
 
