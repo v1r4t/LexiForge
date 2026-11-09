@@ -245,6 +245,43 @@ def _transcript_text(rows: Mapping[str, Mapping[str, Any]]) -> str:
     return " ".join(part for part in parts if part).strip()
 
 
+def _detected_language_code(rows: Mapping[str, Mapping[str, Any]]) -> str | None:
+    """First reported language across a job's files, in stable file order."""
+    for _, row in sorted(rows.items()):
+        if not isinstance(row, Mapping):
+            continue
+        value = row.get("detected_language_code")
+        if isinstance(value, str) and value:
+            return value
+    return None
+
+
+def _persist_arm_transcript(
+    run_dir: Path,
+    call: Any,
+    arm: str,
+    *,
+    rows: Mapping[str, Mapping[str, Any]],
+    config: Mapping[str, Any],
+    status: str,
+    job_id: str,
+) -> Path:
+    """Persist one arm's raw transcript next to its plan (lazy import)."""
+    from lexiforge.score.store import write_arm_transcript
+
+    return write_arm_transcript(
+        run_dir,
+        call,
+        arm,
+        text=_transcript_text(rows),
+        rows=rows,
+        config=config,
+        status=status,
+        job_id=job_id,
+        detected_language_code=_detected_language_code(rows),
+    )
+
+
 def _entry_origin(entry: Any) -> str | None:
     if not isinstance(entry, Mapping):
         return None
@@ -404,7 +441,7 @@ def _run_arm(
     language_code: str,
     budget: int,
     poll_timeout: float,
-) -> tuple[str, str]:
+) -> tuple[str, str, dict[str, Any]]:
     config = _batch_config(
         arm,
         terms,
@@ -419,7 +456,7 @@ def _run_arm(
     _write_json(plan_path, plan)
     active_client.start_job(job_id)
     status = active_client.wait(job_id, timeout_s=poll_timeout)
-    return job_id, status
+    return job_id, status, config
 
 
 def run_pilot(
@@ -499,7 +536,7 @@ def run_pilot(
     statuses: dict[str, str] = {}
 
     # Baseline first: its transcript is the selector input for the treated arms.
-    baseline_job, baseline_status = _run_arm(
+    baseline_job, baseline_status, baseline_config = _run_arm(
         active_client,
         "baseline",
         [],
@@ -519,6 +556,15 @@ def run_pilot(
             active_client.fetch_all_transcripts(baseline_job)
         )
     }
+    _persist_arm_transcript(
+        run_dir,
+        call,
+        "baseline",
+        rows=rows_by_arm["baseline"],
+        config=baseline_config,
+        status=baseline_status,
+        job_id=baseline_job,
+    )
 
     arms = _build_arms(
         _transcript_text(rows_by_arm["baseline"]),
@@ -536,7 +582,7 @@ def run_pilot(
     _write_json(plan_path, plan)
 
     for arm in ARM_NAMES[1:]:
-        job_id, status = _run_arm(
+        job_id, status, config = _run_arm(
             active_client,
             arm,
             arms[arm],
@@ -553,6 +599,15 @@ def run_pilot(
         statuses[job_id] = status
         rows_by_arm[arm] = _normalise_transcripts(
             active_client.fetch_all_transcripts(job_id)
+        )
+        _persist_arm_transcript(
+            run_dir,
+            call,
+            arm,
+            rows=rows_by_arm[arm],
+            config=config,
+            status=status,
+            job_id=job_id,
         )
 
     provenance = {
