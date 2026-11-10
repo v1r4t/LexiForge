@@ -316,6 +316,7 @@ wheel, and builds the frontend.
 
 ## Docs
 
+- [One-page pitch](PITCH.md) · [Demo script](DEMO.md) · [Demo page](docs/demo.html)
 - [Design](docs/design.md)
 - [Pre-registration](docs/preregistration.md) ·
   [Amendment 1](docs/preregistration-amendment-1.md)

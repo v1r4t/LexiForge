@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LexiForge — Keyterm Health for Gnani Prisma v3.0</title>
+<style>
+  :root {
+    --bg: #0b1020;
+    --panel: #141a2e;
+    --ink: #eef2ff;
+    --muted: #9aa6c4;
+    --accent: #5eead4;
+    --amber: #fbbf24;
+    --red: #fb7185;
+    --line: #26304d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: radial-gradient(1200px 700px at 80% -10%, #1b2a52 0%, var(--bg) 55%);
+    color: var(--ink);
+    font: 16px/1.45 "Segoe UI", system-ui, -apple-system, sans-serif;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 44px 48px 36px; }
+  .kicker { color: var(--accent); font-weight: 700; letter-spacing: .14em; text-transform: uppercase; font-size: 12px; }
+  h1 { font-size: 46px; line-height: 1.08; margin: 10px 0 8px; letter-spacing: -1.2px; }
+  .sub { color: var(--muted); font-size: 19px; max-width: 900px; margin-bottom: 26px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; }
+  .card h3 { margin: 0 0 8px; font-size: 15px; color: var(--accent); letter-spacing: .04em; text-transform: uppercase; }
+  .card p { margin: 0; color: var(--muted); font-size: 15px; }
+  .flow { display: flex; gap: 8px; align-items: center; margin: 18px 0 8px; color: var(--muted); font-size: 14px; flex-wrap: wrap; }
+  .chip { background: #1b2440; border: 1px solid var(--line); padding: 7px 11px; border-radius: 999px; }
+  .arrow { color: var(--accent); }
+  h2 { font-size: 22px; margin: 30px 0 12px; letter-spacing: -.3px; }
+  table { width: 100%; border-collapse: collapse; background: var(--panel); border-radius: 12px; overflow: hidden; font-size: 16px; }
+  th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; }
+  td.num { font-variant-numeric: tabular-nums; }
+  tr.hi td { background: #172442; }
+  tr.hi td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+  .good { color: var(--accent); font-weight: 700; }
+  .bad { color: var(--red); font-weight: 700; }
+  .callout { margin-top: 20px; border-left: 4px solid var(--amber); background: #1c1a10; padding: 16px 18px; border-radius: 0 12px 12px 0; }
+  .callout b { color: var(--amber); }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 18px; }
+  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+  .stat .v { font-size: 26px; font-weight: 800; letter-spacing: -.5px; }
+  .stat .l { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  ul { color: var(--muted); margin: 8px 0 0 18px; padding: 0; }
+  li { margin: 6px 0; }
+  footer { margin-top: 26px; color: var(--muted); font-size: 13px; display: flex; justify-content: space-between; gap: 16px; border-top: 1px solid var(--line); padding-top: 14px; }
+  .tag { display: inline-block; background: #2a1e12; color: var(--amber); border: 1px solid #5a3a16; padding: 4px 9px; border-radius: 999px; font-size: 12px; font-weight: 700; letter-spacing: .06em; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="kicker">LexiForge · Gnani Prisma v3.0 · Hinglish banking</div>
+  <h1>Which 200 keyterms<br>should this call get?</h1>
+  <div class="sub">Gnani gives you 200 keyterm slots. Your glossary is larger. LexiForge selects the list, runs controlled arms on the same audio, and proves whether the list helped or hurt.</div>
+
+  <div class="flow">
+    <span class="chip">glossary</span><span class="arrow">→</span>
+    <span class="chip">select 200</span><span class="arrow">→</span>
+    <span class="chip">baseline · selected · mismatched · hard-negative · oracle · static</span><span class="arrow">→</span>
+    <span class="chip">Keyterm Health Report</span>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h3>The gap</h3>
+      <p>Vendor benchmarks show relevant keyterms help on public clips. They do not tell a customer whether a list helps on their own noisy, code-mixed calls — or whether it quietly degrades ordinary recognition.</p>
+    </div>
+    <div class="card">
+      <h3>What we measure</h3>
+      <p><b>A</b> — critical terms: brand, product, scheme, must-have. <b>B</b> — all-real-term guardrail: keyterms must not wreck words the model already knows.</p>
+    </div>
+  </div>
+
+  <h2>Six-arm pilot — synthetic TTS, 4 calls</h2>
+  <table>
+    <thead><tr><th>Arm</th><th>Real recall</th><th>Brand recall</th><th>Insertions / utt</th><th>WER</th></tr></thead>
+    <tbody>
+      <tr><td>baseline</td><td class="num">21/23 (91.3%)</td><td class="num">2/12 (16.7%)</td><td class="num">0.00</td><td class="num">27.2%</td></tr>
+      <tr><td>selected-200</td><td class="num bad">16/23 (69.6%)</td><td class="num good">10/12 (83.3%)</td><td class="num">0.05</td><td class="num">41.8%</td></tr>
+      <tr><td>mismatched-200</td><td class="num">17/23 (73.9%)</td><td class="num">3/12 (25.0%)</td><td class="num">0.10</td><td class="num">39.2%</td></tr>
+      <tr><td>hard-negative-200</td><td class="num">18/23 (78.3%)</td><td class="num">2/12 (16.7%)</td><td class="num">0.20</td><td class="num">41.3%</td></tr>
+      <tr class="hi"><td><b>oracle-200</b></td><td class="num">19/23 (82.6%)</td><td class="num good">12/12 (100%)</td><td class="num">0.10</td><td class="num">37.0%</td></tr>
+      <tr><td>static-head-200</td><td class="num">17/23 (73.9%)</td><td class="num">6/12 (50.0%)</td><td class="num">0.00</td><td class="num">34.1%</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <b>Key finding:</b> every keyterm list lowered real-term recall versus baseline — including the oracle — while brand recall moved exactly as intended (16.7% → 83.3–100%). The trade-off is the result, not a selector bug.
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="v">−17.5pp</div><div class="l">H1 real recall, p = 0.062 — not rejected</div></div>
+    <div class="stat"><div class="v">+0.10</div><div class="l">H2 insertions/utt, p = 0.503 — not rejected</div></div>
+    <div class="stat"><div class="v">+9.17pp</div><div class="l">Oracle − mismatched positive control, CI [0, +18.3]</div></div>
+  </div>
+  <div class="sub" style="margin-top:12px;font-size:14px">n=4 cannot reject: the smallest one-sided sign-flip p is 0.0625. The direction is consistent; the sample is not.</div>
+
+  <h2>Why this matters to Gnani</h2>
+  <ul>
+    <li>Gnani sells the 200 slots; LexiForge chooses the right 200 and proves it on the customer's own audio.</li>
+    <li>It is a POC accelerator and a glossary guardrail, not a competing ASR.</li>
+    <li>Runs in-VPC, consistent with regulated BFSI deployments.</li>
+    <li>Currently synthetic and internal-only; real Hinglish audio is the next step.</li>
+  </ul>
+
+  <footer>
+    <span>github.com/v1r4t/LexiForge</span>
+    <span class="tag">INTERNAL HARNESS VALIDATION · SYNTHETIC TTS</span>
+  </footer>
+</div>
+</body>
+</html>
