@@ -13,6 +13,8 @@ LexiForge measures it.
 > synthetic TTS pilot, not customer recordings. Every result in this repo is
 > internal harness validation until real, consented audio is run.
 
+**One-page pitch:** [PITCH.md](PITCH.md) · [PITCH.pdf](PITCH.pdf)
+
 ---
 
 ## The problem
@@ -316,7 +318,7 @@ wheel, and builds the frontend.
 
 ## Docs
 
-- [One-page pitch](PITCH.md) · [Demo script](DEMO.md) · [Demo page](docs/demo.html)
+- [One-page pitch](PITCH.md) · [PDF](PITCH.pdf) · [Demo script](DEMO.md) · [Demo page](docs/demo.html)
 - [Design](docs/design.md)
 - [Pre-registration](docs/preregistration.md) ·
   [Amendment 1](docs/preregistration-amendment-1.md)

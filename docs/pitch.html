@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>LexiForge — One-page pitch</title>
+<style>
+  @page { size: A4; margin: 10mm 12mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    color: #111827;
+    font-size: 9.1pt;
+    line-height: 1.27;
+    margin: 0;
+  }
+  h1 { font-size: 17pt; margin: 0 0 2px; letter-spacing: -0.4px; }
+  h2 {
+    font-size: 10.2pt; margin: 8px 0 3px; color: #0f766e;
+    text-transform: uppercase; letter-spacing: .07em;
+  }
+  p { margin: 2px 0; }
+  ul { margin: 2px 0 2px 15px; padding: 0; }
+  li { margin: 1.5px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 3px 0; font-size: 8.6pt; }
+  th, td { border: 1px solid #d1d5db; padding: 2.4px 5px; text-align: left; }
+  th { background: #f3f4f6; }
+  .one { font-weight: 700; color: #0f766e; }
+  .note { color: #4b5563; font-size: 8.4pt; }
+  .row { display: flex; gap: 14px; }
+  .col { flex: 1; }
+  a { color: #0f766e; text-decoration: none; }
+</style>
+</head>
+<body>
+  <h1>LexiForge — Keyterm Health for Gnani Prisma v3.0</h1>
+  <p class="one">Gnani gives you 200 keyterm slots per call; LexiForge chooses the 200, checks them, and proves on your own calls whether they helped or hurt.</p>
+
+  <h2>Problem</h2>
+  <ul>
+    <li>Prisma v3.0 accepts up to 200 <code>keyterms</code>, but the business glossary is far larger and changes. Someone must choose the subset — manually, and usually once.</li>
+    <li>Vendor benchmarks show <i>relevant</i> keyterms help on public clips. They do not tell a customer whether a list helps on their noisy, code-mixed calls, or whether it degrades ordinary recognition.</li>
+    <li>A wrong list is a silent failure: missed brand/product/scheme names break search, analytics and compliance; over-broad lists can displace known words.</li>
+  </ul>
+
+  <h2>What we built</h2>
+  <p>A Hinglish-banking <b>Keyterm Health service</b>: takes a glossary, call audio and reference transcripts; selects a candidate list; runs six arms on the same audio — baseline, selected, mismatched, hard-negative, oracle-200, static-head-200; scores term recall, insertions, WER and paired deltas; returns a report with an A/B verdict and provenance.</p>
+  <p><b>A</b> = critical terms (brand, product, must-have). <b>B</b> = all-real guardrail: keyterms must not wreck ordinary recognition.</p>
+
+  <h2>Evidence — synthetic 4-call pilot</h2>
+  <table>
+    <thead><tr><th>Arm</th><th>Real recall</th><th>Brand recall</th><th>Insertions / utt</th></tr></thead>
+    <tbody>
+      <tr><td>baseline</td><td>21/23 (91.3%)</td><td>2/12 (16.7%)</td><td>0.00</td></tr>
+      <tr><td>selected-200</td><td>16/23 (69.6%)</td><td>10/12 (83.3%)</td><td>0.05</td></tr>
+      <tr><td>mismatched-200</td><td>17/23 (73.9%)</td><td>3/12 (25.0%)</td><td>0.10</td></tr>
+      <tr><td><b>oracle-200</b></td><td>19/23 (82.6%)</td><td><b>12/12 (100%)</b></td><td>0.10</td></tr>
+    </tbody>
+  </table>
+  <p class="note">Full six-arm table: docs/pilot4-results.md. Internal harness validation — synthetic TTS, not customer evidence.</p>
+  <ul>
+    <li><b>H1</b> (mismatched &lt; baseline real recall): −17.5pp, p = 0.062 — not rejected.</li>
+    <li><b>H2</b> (mismatched &gt; baseline insertions): +0.10/utt, p = 0.503 — not rejected.</li>
+    <li><b>Positive control:</b> oracle − mismatched +9.17pp, CI [0, +18.3], passes.</li>
+    <li>At n=4 the smallest one-sided sign-flip p is 0.0625; this is descriptive only.</li>
+  </ul>
+  <p><b>Key finding:</b> every keyterm list lowered real recall versus baseline — including the oracle — while brand recall moved exactly as intended (16.7% → 83.3–100%). The trade-off is the result, not a selector bug.</p>
+
+  <h2>Why Gnani</h2>
+  <p>Gnani sells the 200 slots and the model. LexiForge makes the 200 the right 200 and proves it on the customer's own audio: a POC accelerator, a glossary guardrail, and a measured capability for the keyterm feature Gnani already ships. It runs in-VPC for regulated BFSI deployments.</p>
+
+  <h2>Status and limits</h2>
+  <ul>
+    <li>Working end to end: Gnani REST + Batch clients, Timbre TTS, six arms, report, recording pack, 20 consistent scripts, 841 tests.</li>
+    <li><b>Synthetic TTS only; no customer audio.</b> Internal harness validation.</li>
+    <li>n=4 is underpowered; a 20-call run is required before any confirmatory claim.</li>
+    <li>Batch queue instability observed; REST with chunking is the reliable transport.</li>
+    <li>WER is format-sensitive and not quoted as recognition quality.</li>
+  </ul>
+
+  <h2>Links</h2>
+  <p class="note">
+    Repo: <a href="https://github.com/v1r4t/LexiForge">github.com/v1r4t/LexiForge</a> ·
+    Detail: docs/pilot4-results.md · Design: docs/design.md ·
+    Pre-registration: docs/preregistration.md · Real-audio intake: docs/real-audio-intake.md
+  </p>
+</body>
+</html>
