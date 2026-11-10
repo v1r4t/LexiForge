@@ -1,56 +1,92 @@
 # LexiForge
 
-A vocabulary-budget risk harness for Gnani Prisma v3.0 on Hinglish banking speech.
+**A keyterm-risk harness and measurement service for Gnani Prisma v3.0 on
+Hinglish banking calls.**
 
-**Question:** you get 200 keyterm slots per call and your glossary has 2,000. A fixed list is stale for most calls — so what does it cost when the list is wrong?
+You get 200 keyterm slots per call. Your glossary has hundreds or thousands of
+terms. Someone has to choose the 200 — and today there is no repeatable way to
+know whether that list helped, hurt, or did nothing on your own calls.
 
-## What this tests
+LexiForge measures it.
 
-Two confirmatory hypotheses, both pre-registered in the negative direction:
+> **Scope and honesty.** Hinglish banking speech only. Current evidence is a
+> synthetic TTS pilot, not customer recordings. Every result in this repo is
+> internal harness validation until real, consented audio is run.
 
-- **H1** — an irrelevant list costs recognized words: `mismatched-200 < baseline` on real terms the model already knows (`NEFT`, `UPI`, `KYC`, `IFSC`).
-- **H2** — an irrelevant list invents words: `mismatched-200 > baseline` in glossary-term insertions per utterance.
+---
 
-The benefit of a *relevant* list is a positive control, not a claim. If it does not appear, the pipeline is broken.
+## The problem
 
-## What this does not claim
+- Gnani Prisma v3.0 accepts up to 200 `keyterms` per request, plus `topic`,
+  `speaker_names`, and a small substitution map.
+- Enterprise glossaries are larger, stale, and owned by the business — not the
+  ASR vendor.
+- Vendor benchmarks show that *relevant* keyterms help on public clips. They do
+  not tell a customer whether a candidate list helps on their noisy,
+  code-mixed calls, or whether it quietly degrades ordinary recognition.
+- A wrong list can silently cost real terms or add unspoken ones. Missed brand
+  names break search, analytics, and compliance.
 
-It does not show that a static list causes harm — that is reported separately. Mismatched-200 is a worst case, a fully irrelevant list, not a typical deployment.
+## What LexiForge does
 
-> **Corpus disclosure.** This is a synthetic Hinglish banking-call corpus — four volunteers, scripted and read aloud, fictional brand names, no real customer data. Results are upper-bound measurements on clean read speech with an artificially raised term density, and must not be read as real contact-centre evidence.
+Given a glossary, call audio, and reference transcripts, it:
 
-## Status
+1. selects a candidate keyterm list for each call;
+2. runs controlled arms on the **same audio**;
+3. scores term-level recall, insertions, WER, and paired deltas;
+4. returns a **Keyterm Health Report** with an A/B verdict and provenance.
 
-Design approved 2026-10-29. Deadline 2026-11-10.
+### The arms
 
-- Design: [`docs/design.md`](docs/design.md)
-- Keyterm Health POC: [`docs/keyterm-health-poc.md`](docs/keyterm-health-poc.md) (measurement-led, pre-registered, internal-only Phases 1-2 synthetic; no measured results claimed)
-- Real-audio intake: [`docs/real-audio-intake.md`](docs/real-audio-intake.md)
-- Recording protocol: [`docs/recording-protocol.md`](docs/recording-protocol.md) (pack generation, consent, QC; preparation only, no audio recorded)
-- Consent and redaction: [`docs/consent-and-redaction.md`](docs/consent-and-redaction.md)
-- Pre-registration: [`docs/preregistration.md`](docs/preregistration.md)
-- Notes: [`docs/notes/`](docs/notes/)
-
-### Implementation state
-
-| Area | State |
+| Arm | What it is |
 |---|---|
-| Canonicalisation + matcher | frozen (`matcher-v1.0`), collision-tested |
-| Truncated-term alignment / insertion rule | implemented, tested |
-| Selector `S = 0.55·Lex + 0.25·Phon + 0.20·Prior` | implemented, leakage-guarded |
-| Job ledger + 8-state runner | implemented (SQLite, write-ahead ids) |
-| Prisma v3.0 batch client | implemented (sync + bounded-concurrency async, typed errors) |
-| Runner ↔ Prisma wiring | `PrismaBackend` implements the runner interface (create+start, wait) |
-| Cluster-aware inference | implemented (sign-flip, Holm, wild bootstrap-t) |
-| Glossary / core-200 / assignment data | generated and committed |
-| Dashboard | API + React build; sample data is labelled as sample |
-| Export redaction | phone / card / Aadhaar / account / e-mail masked by default |
-| Recorded audio, references, scored runs | **not in this repo** (gitignored for consent) |
+| `baseline` | No keyterms |
+| `selected-200` | Selector output (natural size by default; optional padding) |
+| `mismatched-200` | 200 off-domain terms (negative control) |
+| `hard-negative-200` | 200 phonetically close terms |
+| `oracle-200` | Expected terms + padding (positive control) |
+| `static-head-200` | One fixed core-200 list (secondary control) |
 
-Nothing in this repository contains measured results yet. `web/data/sample/`
-is a hand-written placeholder and the UI banners it as such.
+### The endpoints
 
-Stack: Python 3.11, SQLite, FastAPI, React + Vite + Tailwind, ffmpeg.
+- **A — critical terms:** brand, product, scheme, and customer must-have terms.
+- **B — all real terms:** non-inferiority guardrail. Keyterms must not wreck
+  ordinary recognition.
+
+A pass needs A to improve **and** B to stay within the agreed harm margin.
+
+---
+
+## Current result — synthetic, 4 calls
+
+`c00–c03`, 5 turns each, TTS voices, `format=transliterate`, six arms.
+
+| Arm | Real recall | Brand recall | Insertions / utt | WER |
+|---|---|---|---|---|
+| baseline | 21/23 (91.3%) | 2/12 (16.7%) | 0.00 | 27.2% |
+| selected-200 (brand-only) | 16/23 (69.6%) | 10/12 (83.3%) | 0.05 | 41.8% |
+| mismatched-200 | 17/23 (73.9%) | 3/12 (25.0%) | 0.10 | 39.2% |
+| hard-negative-200 | 18/23 (78.3%) | 2/12 (16.7%) | 0.20 | 41.3% |
+| **oracle-200** | 19/23 (82.6%) | **12/12 (100%)** | 0.10 | 37.0% |
+| static-head-200 | 17/23 (73.9%) | 6/12 (50.0%) | 0.00 | 34.1% |
+
+Pre-registered H1/H2 (`mismatched − baseline`):
+
+- **H1** real recall **−17.5pp**, p = 0.062 — **not rejected**.
+- **H2** insertions **+0.10/utterance**, p = 0.503 — **not rejected**.
+- **Positive control** oracle − mismatched **+9.17pp**, CI [0.0, +18.3], passes.
+- **Claim ladder:** mechanism only.
+
+At n=4 the smallest attainable one-sided sign-flip p is **0.0625**, so
+rejection is impossible. The direction is consistent; the sample is not.
+
+**The key finding:** every keyterm list lowered real-term recall versus
+baseline — including the oracle — while brand recall moved exactly as intended
+(16.7% → 83.3–100%). The trade-off is the result, not a selector bug.
+
+Full write-up: [`docs/pilot4-results.md`](docs/pilot4-results.md).
+
+---
 
 ## Install
 
@@ -58,164 +94,243 @@ Stack: Python 3.11, SQLite, FastAPI, React + Vite + Tailwind, ffmpeg.
 pip install -e ".[dev]"
 ```
 
-Python 3.10+ works; CI targets 3.11.
+Python 3.10+ works; CI targets 3.11. `ffmpeg` is used for audio conversion.
+
+```bash
+python -m pytest tests/ -q     # 841 tests
+ruff check lexiforge tests web scripts
+```
+
+## Quick start
+
+```bash
+python -m lexiforge.cli doctor      # verify the Gnani key; no credits
+python -m lexiforge.cli info        # component + matcher status
+python -m lexiforge.cli canon NEFT  # print the frozen matching key
+```
+
+`.env` (gitignored):
+
+```text
+GNANI_API_KEY=...
+GNANI_BASE_URL=https://api.vachana.ai
+```
+
+## Run a Keyterm Health study
+
+### 1. Build or record the calls
+
+```bash
+# printable 20-call pack: sheets, references, manifest, consent, QC
+python scripts/build_recording_pack.py
+
+# synthetic fallback (internal validation only)
+python scripts/synthesize_recording_pack.py --calls c00,c01,c02,c03
+```
+
+Human recordings go in `recording/audio/<call>.wav`. Read the sheets exactly
+as written; the references in `recording/refs/` are the ground truth.
+
+### 2. Validate the intake
+
+```bash
+python scripts/record_check.py recording/manifest.template.json
+```
+
+Checks duration, sample rate, channels, clipping, DC offset, silence, duplicate
+IDs, and reference transcripts. `--strict` makes QC warnings fail.
+
+### 3. Run the arms
+
+```bash
+# free dry-run: builds the arm plan and writes plan.json
+python scripts/run_keyterm_study.py recording/manifest.pilot4.json \
+  --glossary data/glossary.json
+
+# execute over REST (the Batch queue has been stalling)
+python scripts/run_keyterm_study.py recording/manifest.pilot4.json \
+  --glossary data/glossary.json --out-dir runs \
+  --execute --rest --selected-natural --critical-only \
+  --format transliterate \
+  --arms baseline,selected-200,mismatched-200,hard-negative-200,oracle-200,static-head-200
+```
+
+Outputs:
+
+```
+runs/<study_id>/report.md          Keyterm Health Report
+runs/<study_id>/summary.json       verdict, failures, per-call path
+runs/<study_id>/per_call.json      per-call aggregates
+runs/<study_id>/preregistered.json optional H1/H2 analysis
+runs/<call>/<arm>.transcript.json  persisted transcripts
+```
+
+### 4. Pre-registered analysis
+
+```bash
+python scripts/analyse_preregistered.py runs/gnani-bfsi-pilot4/per_call.json \
+  --out runs/gnani-bfsi-pilot4/preregistered.json
+```
+
+## Reproduce and inspect
+
+```bash
+python scripts/reproduce_study.py --help   # offline re-score + verdict check
+python scripts/run_list_sweep.py --budgets 5,50,200
+python scripts/build_report_page.py --help # static HTML report page
+python scripts/check_data_consistency.py   # data/script/glossary gates
+```
+
+See [`docs/reproduce.md`](docs/reproduce.md) and the
+[`Makefile`](Makefile) targets: `check-data`, `study`, `study-execute`,
+`repro`, `report-page`.
 
 ## CLI
 
 ```bash
 python -m lexiforge.cli --help
 
-lexiforge info                     # component + matcher status
-lexiforge doctor                   # check the API key, costs no credits
-lexiforge canon "NEFT"             # print the frozen matching key
-
-lexiforge optimize \
-  --glossary data/glossary.json \
+lexiforge info
+lexiforge doctor
+lexiforge canon "NEFT"
+lexiforge optimize --glossary data/glossary.json \
   --hypothesis "mera NEFT transfer fail ho gaya" \
   --call-type upi_failed --max-terms 200 --output context.json
-
-lexiforge validate job_config.json # validate a batch job config
-lexiforge export-web               # build web/data from scored transcripts
+lexiforge validate job_config.json
+lexiforge export-web
 ```
 
-All CLI output is ASCII so it runs on a default Windows console (cp1252).
+All CLI output is ASCII for Windows consoles.
 
 ## Dashboard
 
-The dashboard is a FastAPI service plus a React build. Both are needed: the API
-serves the JSON, the build is mounted at `/`.
+FastAPI API + React/Vite/Tailwind build.
 
 ```bash
-# 1. build the front end (once, and after changing web/frontend)
-cd web/frontend && npm install && npm run build && cd ../..
-
-# 2. serve API + dashboard on http://127.0.0.1:8000
+cd web/frontend && npm ci && npm run build && cd ../..
 uvicorn web.api:app --host 127.0.0.1 --port 8000
+# or: make run-dev
 ```
 
-Or `make run-dev` (builds then serves).
+Data resolution: `$LEXIFORGE_WEB_DATA` → `web/data/` (measured) →
+`web/data/sample/` (labelled placeholder). `/meta` reports `is_sample`; the UI
+shows an amber banner. Endpoints: `/health`, `/meta`, `/calls`,
+`/calls/{id}/transcripts`, `/calls/{id}/terms`, `/calls/{id}/audio`,
+`/results`, `/demo/config`, `POST /reload`.
 
-Data resolution, in order:
+Exports are redacted by default (`lexiforge/privacy.py`): phone, card, Aadhaar,
+account, e-mail. Scoring runs on unredacted text, so masking never changes a
+recall figure.
 
-1. `$LEXIFORGE_WEB_DATA` if set.
-2. `web/data/` when it contains `calls.json` (measured export).
-3. `web/data/sample/` — the labelled placeholder set.
-
-Files are re-read when their mtime changes, so regenerating results does not
-need a restart (`POST /reload` forces it).
-
-Endpoints: `/health`, `/meta`, `/calls`, `/calls/{id}/transcripts`,
-`/calls/{id}/terms`, `/calls/{id}/audio`, `/results`, `/demo/config`,
-`POST /reload`.
-
-Audio is optional: `/calls/{id}/audio` serves `<LEXIFORGE_AUDIO_DIR>/<call_id>.{wav,mp3,m4a,flac,ogg}`
-(default directory `audio/`, which is gitignored). The player only renders when
-a recording actually resolves.
-
-The call page shows two views: token chips per condition, and an alignment to
-baseline (LCS diff marking lost and invented words).
-
-Without a built front end the API still runs; `/` returns a 503 that names the
-missing build step instead of a bare 404.
-
-### Sample vs measured
-
-`web/data/sample/results.json` carries `"is_sample": true` and every contrast is
-marked `"verdict": "sample"`. `/meta` reports `is_sample` and the UI shows a
-persistent amber banner. Replace it with measured output via:
+A static report page is also generated:
 
 ```bash
-lexiforge export-web --transcripts transcripts --refs refs --out web/data
+python scripts/build_report_page.py --help
+# committed example: web/data/report/sample/index.html
 ```
 
-The exporter computes recalls with the frozen matcher and emits **descriptive**
-paired differences only. It never writes p-values — inference stays in
-`lexiforge.analysis.inference`.
+## Architecture
 
-Every string it writes is redacted by default (`lexiforge/privacy.py`): phone
-numbers, card numbers, Aadhaar numbers, account numbers and e-mail addresses
-become stable masks. Scoring runs on unredacted text, so masking never changes
-a recall figure. Pass `--no-redact` only for data you are allowed to publish;
-`demo_config.json` records which mode was used and how many values were masked.
-
-## Tracing
-
-Spans are kept in a bounded in-process ring. Point `LEXIFORGE_TRACE_FILE` at a
-path to also append one JSON object per span (name, attributes, duration, error):
-
-```bash
-LEXIFORGE_TRACE_FILE=runs/spans.jsonl lexiforge export-web
-```
-
-There is no OpenTelemetry exporter; `lexiforge info` reports observability as
-`partial` for that reason.
-
-## Containers
-
-```bash
-docker build -t lexiforge:latest .
-docker run --rm -p 8000:8000 lexiforge:latest
-```
-
-The image builds the front end in a Node stage and serves it from the Python
-stage. `DEMO_MODE=precomputed` (the default) disables every outbound call from
-the dashboard process.
-
-## Tests
-
-```bash
-python -m pytest tests/ -q      # 466 tests
-make test-cov                   # with coverage
-```
-
-## Layout
-
-```
+```text
 lexiforge/
-  canon.py            frozen canonicalisation
-  ledger.py           SQLite job ledger (write-ahead client ids)
-  runner.py           8-state orchestration
-  api/                Prisma v3.0 clients (batch, typed errors, async helpers)
-  glossary/           generation, validation, core-200, assignment
-  select/             BM25 + Hinglish phonetics + prior, MMR
-  score/              alignment, matching, metrics
-  analysis/           permutation tests, Holm, bootstrap
-  optimizer/          per-call context selection
-  observability/      logging, metrics, in-process spans
-  plugins/            ASR backend registry
-  cli.py              command line
-web/
-  api.py              dashboard API
-  data/sample/        labelled placeholder dataset
-  frontend/           React + Vite + Tailwind dashboard
+  canon.py              frozen canonicalisation (matcher-v1.0)
+  ledger.py             SQLite job ledger, write-ahead client ids
+  runner.py             8-state orchestration
+  api/                  Prisma clients: batch, REST fallback, admin, validator
+  audio/                8 kHz telephony, G.711 mu-law, noise, WAV I/O
+  tts/                  Gnani Timbre client (Poorvi / Deepak)
+  contexts/             arms, oracle-200, static-head-200, mismatch, hard negatives
+  select/               BM25 + HING-SKEL phonetics + priors, MMR
+  score/                frozen matcher, alignment, metrics, transcript store,
+                        term diff, presence sensitivity, alias audit
+  analysis/             permutation, Holm, bootstrap, pre-registered H1/H2
+  report/               Keyterm Health report, provenance, claims register
+  study/                validated manifest schema
+  glossary/             generation, validation, core-200, assignment
+  optimizer/            per-call context selection
+  observability/        logging, metrics, in-process spans
+  plugins/              ASR backend registry
+
 scripts/
-  build_data.py       regenerate glossary/core-200/assignment
-  export_web_data.py  transcripts + refs -> dashboard JSON
-data/                 committed glossary, core-200, assignment, scripts
+  build_data.py                 regenerate glossary/core-200/assignment
+  build_pilot_scripts.py        regenerate c00-c19 from assignment + glossary
+  build_recording_pack.py       printable sheets, refs, manifest, consent, QC
+  synthesize_recording_pack.py  TTS fallback for the pack
+  record_check.py               audio/manifest QC
+  run_keyterm_pilot.py          one call, all arms
+  run_keyterm_study.py          multi-call study, resume, report
+  analyse_preregistered.py      H1/H2 + Holm + positive control
+  run_list_sweep.py             list-size dose response
+  reproduce_study.py            offline re-score and verdict check
+  build_report_page.py          static HTML report
+  check_data_consistency.py     CI data gates
+  export_web_data.py            transcripts + refs -> dashboard JSON
+
+data/                    1,000-term glossary, core-200, assignment, 20 scripts
+recording/               pack: sheets, refs, manifest, consent, QC
+web/                     FastAPI dashboard + React frontend
 ```
+
+## Data
+
+- `data/glossary.json` — 1,000 terms (180 real, 820 fictional).
+- `data/core200.json` — frozen 200-term static list.
+- `data/assignment.json` — per-call term assignment.
+- `data/scripts/c00–c19.json` — 20 consistent call scripts, each with expected
+  real/fictional IDs.
+- `c00–c03` are the frozen pilot calls; `c04–c19` regenerate identically from
+  the assignment.
+
+## Tests and checks
+
+```bash
+python -m pytest tests/ -q          # 841 tests
+ruff check lexiforge tests web scripts
+python scripts/check_data_consistency.py
+python scripts/eval_matcher_gold.py # 47 hand-labelled cases, >=0.98 gate
+```
+
+CI runs the suite on Python 3.11 under `PYTHONHASHSEED=0` and `=1`, builds the
+wheel, and builds the frontend.
 
 ## Known gaps
 
-- The container image was **not built on this machine** (no Docker daemon
-  available). Each stage was verified separately instead: `npm ci` + `npm run
-  build` from a clean checkout of the lock file produces the same bundle
-  hashes, and `pip wheel .` builds a wheel containing every package. Treat the
-  first `docker build` on a real host as unproven until it runs.
-- Tracing is in-process only (bounded span deque). There is no OpenTelemetry
-  export; `lexiforge info` reports observability as `partial` for that reason.
-- Audio, references and transcripts are not committed, so a fresh clone cannot
-  reproduce the experiment — only the harness.
-- `ruff` gates on `E4`, `E7`, `E9`, `F`, `I` only. The modernization rule sets
-  are intentionally off; enabling them would rewrite code outside this work.
+- **No real customer audio.** The measured result is synthetic TTS; treat it as
+  harness validation, not contact-centre evidence.
+- **n=4 is underpowered.** The smallest attainable one-sided p is 0.0625; H1/H2
+  cannot reject. A 20-call run is required.
+- **Every keyterm list lowered real recall in the pilot**, including the oracle.
+  Whether that is ASR bias or transliteration/alias drift is the next experiment.
+- **Batch queue instability.** Two fresh jobs sat `QUEUED` for 30+ minutes; the
+  REST client with chunking is the reliable path for short calls.
+- **WER is format-sensitive** (27–42% in the pilot). Do not quote it as
+  recognition quality.
+- **Glossary size** is 1,000, not the 2,000 assumed in early notes; the 20
+  scripts are consistent with the committed assignment.
+- **Dashboard sample data** is a labelled placeholder; the static report page is
+  the portable artifact.
+- **Docker build is unverified** on a host with a daemon.
+- **Tracing is in-process only**; no OpenTelemetry exporter.
+- **Selector composition is not final.** Brand-only selection wins brand recall
+  but costs real recall; brand + must-have real terms is the untested next step.
 
-## Checks
+## Docs
 
-```bash
-python -m pytest tests/ -q     # 466 tests
-ruff check lexiforge tests web scripts
-```
+- [Design](docs/design.md)
+- [Pre-registration](docs/preregistration.md) ·
+  [Amendment 1](docs/preregistration-amendment-1.md)
+- [Keyterm Health POC](docs/keyterm-health-poc.md)
+- [Pilot 4 result](docs/pilot4-results.md)
+- [Report template](docs/keyterm-health-report-template.md)
+- [Real-audio intake](docs/real-audio-intake.md)
+- [Recording protocol](docs/recording-protocol.md) ·
+  [Consent and redaction](docs/consent-and-redaction.md)
+- [POC intake](docs/poc-intake.md) · [Pricing](docs/pricing.md)
+- [Reproduce](docs/reproduce.md) · [Runbook](docs/runbook.md)
+- [Notes](docs/notes/)
 
-CI also runs the suite twice on Python 3.11, once with `PYTHONHASHSEED=0` and
-once with `PYTHONHASHSEED=1`, so hash-order nondeterminism in generated contexts
-cannot pass silently. A separate job builds a wheel with
-`python -m pip wheel . --no-deps`.
+## Status
+
+Research harness and POC-ready measurement service. The engineering is
+complete enough to run a real study; the scientific claim is still pending real
+Hinglish audio and a 20-call analysis.
