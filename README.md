@@ -43,7 +43,7 @@ Given a glossary, call audio, and reference transcripts, it:
 | Arm | What it is |
 |---|---|
 | `baseline` | No keyterms |
-| `selected-200` | Selector output (natural size by default; optional padding) |
+| `selected-200` | Selector output; in the pilot this was brand-only, 8–9 terms, not 200 |
 | `mismatched-200` | 200 off-domain terms (negative control) |
 | `hard-negative-200` | 200 phonetically close terms |
 | `oracle-200` | Expected terms + padding (positive control) |
@@ -63,10 +63,10 @@ A pass needs A to improve **and** B to stay within the agreed harm margin.
 
 `c00–c03`, 5 turns each, TTS voices, `format=transliterate`, six arms.
 
-| Arm | Real recall | Brand recall | Insertions / utt | WER |
+| Arm | Real recall | Fictional-name recall | Insertions / utt | WER |
 |---|---|---|---|---|
 | baseline | 21/23 (91.3%) | 2/12 (16.7%) | 0.00 | 27.2% |
-| selected-200 (brand-only) | 16/23 (69.6%) | 10/12 (83.3%) | 0.05 | 41.8% |
+| selected (brand-only, 8–9 terms) | 16/23 (69.6%) | 10/12 (83.3%) | 0.05 | 41.8% |
 | mismatched-200 | 17/23 (73.9%) | 3/12 (25.0%) | 0.10 | 39.2% |
 | hard-negative-200 | 18/23 (78.3%) | 2/12 (16.7%) | 0.20 | 41.3% |
 | **oracle-200** | 19/23 (82.6%) | **12/12 (100%)** | 0.10 | 37.0% |
@@ -76,15 +76,21 @@ Pre-registered H1/H2 (`mismatched − baseline`):
 
 - **H1** real recall **−17.5pp**, p = 0.062 — **not rejected**.
 - **H2** insertions **+0.10/utterance**, p = 0.503 — **not rejected**.
-- **Positive control** oracle − mismatched **+9.17pp**, CI [0.0, +18.3], passes.
+- **Pilot verdict** (selected vs baseline, B guardrail): real recall **−22.5pp**,
+  CI [−36.7, −8.3] — **FAIL** under the −5pp margin.
+- **Positive control** oracle – mismatched **+9.17pp**, CI [0.0, +18.3];
+  direction consistent, **CI touches zero**.
 - **Claim ladder:** mechanism only.
 
 At n=4 the smallest attainable one-sided sign-flip p is **0.0625**, so
 rejection is impossible. The direction is consistent; the sample is not.
 
 **The key finding:** every keyterm list lowered real-term recall versus
-baseline — including the oracle — while brand recall moved exactly as intended
-(16.7% → 83.3–100%). The trade-off is the result, not a selector bug.
+baseline — including the oracle — while fictional-name recall moved as intended
+(16.7% → 83.3–100%). The selected arm was **8–9 brand-only terms, not a
+200-term list**. Open question: ASR bias or romanisation drift?
+`format=transliterate` and the matcher's lack of transliteration are the leading
+confound. The per-term diff decides.
 
 Full write-up: [`docs/pilot4-results.md`](docs/pilot4-results.md).
 
@@ -313,8 +319,8 @@ wheel, and builds the frontend.
   the portable artifact.
 - **Docker build is unverified** on a host with a daemon.
 - **Tracing is in-process only**; no OpenTelemetry exporter.
-- **Selector composition is not final.** Brand-only selection wins brand recall
-  but costs real recall; brand + must-have real terms is the untested next step.
+- **Selector composition is not final.** Brand-only selection wins fictional-name
+  recall but costs real recall; brand + must-have real terms is the untested next step.
 
 ## Docs
 

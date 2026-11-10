@@ -57,12 +57,12 @@
 <body>
 <div class="wrap">
   <div class="kicker">LexiForge · Gnani Prisma v3.0 · Hinglish banking</div>
-  <h1>Which 200 keyterms<br>should this call get?</h1>
-  <div class="sub">Gnani gives you 200 keyterm slots. Your glossary is larger. LexiForge selects the list, runs controlled arms on the same audio, and proves whether the list helped or hurt.</div>
+  <h1>What does a keyterm list<br>do to this call?</h1>
+  <div class="sub">Gnani gives you 200 keyterm slots. Your glossary is larger. LexiForge measures what a candidate list does on the same audio — and proves whether it helped or hurt.</div>
 
   <div class="flow">
     <span class="chip">glossary</span><span class="arrow">→</span>
-    <span class="chip">select 200</span><span class="arrow">→</span>
+    <span class="chip">select list</span><span class="arrow">→</span>
     <span class="chip">baseline · selected · mismatched · hard-negative · oracle · static</span><span class="arrow">→</span>
     <span class="chip">Keyterm Health Report</span>
   </div>
@@ -80,10 +80,10 @@
 
   <h2>Six-arm pilot — synthetic TTS, 4 calls</h2>
   <table>
-    <thead><tr><th>Arm</th><th>Real recall</th><th>Brand recall</th><th>Insertions / utt</th><th>WER</th></tr></thead>
+    <thead><tr><th>Arm</th><th>Real recall</th><th>Fictional-name recall</th><th>Insertions / utt</th><th>WER</th></tr></thead>
     <tbody>
       <tr><td>baseline</td><td class="num">21/23 (91.3%)</td><td class="num">2/12 (16.7%)</td><td class="num">0.00</td><td class="num">27.2%</td></tr>
-      <tr><td>selected-200</td><td class="num bad">16/23 (69.6%)</td><td class="num good">10/12 (83.3%)</td><td class="num">0.05</td><td class="num">41.8%</td></tr>
+      <tr><td>selected (brand-only, 8–9)</td><td class="num bad">16/23 (69.6%)</td><td class="num good">10/12 (83.3%)</td><td class="num">0.05</td><td class="num">41.8%</td></tr>
       <tr><td>mismatched-200</td><td class="num">17/23 (73.9%)</td><td class="num">3/12 (25.0%)</td><td class="num">0.10</td><td class="num">39.2%</td></tr>
       <tr><td>hard-negative-200</td><td class="num">18/23 (78.3%)</td><td class="num">2/12 (16.7%)</td><td class="num">0.20</td><td class="num">41.3%</td></tr>
       <tr class="hi"><td><b>oracle-200</b></td><td class="num">19/23 (82.6%)</td><td class="num good">12/12 (100%)</td><td class="num">0.10</td><td class="num">37.0%</td></tr>
@@ -92,21 +92,21 @@
   </table>
 
   <div class="callout">
-    <b>Key finding:</b> every keyterm list lowered real-term recall versus baseline — including the oracle — while brand recall moved exactly as intended (16.7% → 83.3–100%). The trade-off is the result, not a selector bug.
+    <b>Key finding:</b> every keyterm list lowered real-term recall versus baseline — including the oracle — while fictional-name recall moved as intended (16.7% → 83.3–100%). The selected arm was <b>8–9 brand-only terms, not a 200-term list</b>. Open question: ASR bias or romanisation drift? <code>format=transliterate</code> is a leading confound.
   </div>
 
   <div class="stats">
     <div class="stat"><div class="v">−17.5pp</div><div class="l">H1 real recall, p = 0.062 — not rejected</div></div>
     <div class="stat"><div class="v">+0.10</div><div class="l">H2 insertions/utt, p = 0.503 — not rejected</div></div>
-    <div class="stat"><div class="v">+9.17pp</div><div class="l">Oracle − mismatched positive control, CI [0, +18.3]</div></div>
+    <div class="stat"><div class="v">+9.17pp</div><div class="l">Oracle − mismatched, CI [0, +18.3] — direction consistent, CI touches zero</div></div>
   </div>
-  <div class="sub" style="margin-top:12px;font-size:14px">n=4 cannot reject: the smallest one-sided sign-flip p is 0.0625. The direction is consistent; the sample is not.</div>
+  <div class="sub" style="margin-top:12px;font-size:14px">Pilot B verdict: selected vs baseline real recall −22.5pp, CI [−36.7, −8.3] — <b>FAIL</b> under the −5pp margin. n=4 cannot reject: the smallest one-sided p is 0.0625.</div>
 
   <h2>Why this matters to Gnani</h2>
   <ul>
-    <li>Gnani sells the 200 slots; LexiForge chooses the right 200 and proves it on the customer's own audio.</li>
+    <li>Gnani sells the 200 slots; LexiForge measures what a list does on the customer's own audio.</li>
     <li>It is a POC accelerator and a glossary guardrail, not a competing ASR.</li>
-    <li>Runs in-VPC, consistent with regulated BFSI deployments.</li>
+    <li>Deployment alongside the customer's stack is a roadmap item; the pilot ran locally.</li>
     <li>Currently synthetic and internal-only; real Hinglish audio is the next step.</li>
   </ul>
 

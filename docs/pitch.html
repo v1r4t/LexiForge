@@ -4,36 +4,34 @@
 <meta charset="utf-8">
 <title>LexiForge — One-page pitch</title>
 <style>
-  @page { size: A4; margin: 10mm 12mm; }
+  @page { size: A4; margin: 9mm 11mm; }
   * { box-sizing: border-box; }
   body {
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
     color: #111827;
-    font-size: 9.1pt;
-    line-height: 1.27;
+    font-size: 8.8pt;
+    line-height: 1.24;
     margin: 0;
   }
-  h1 { font-size: 17pt; margin: 0 0 2px; letter-spacing: -0.4px; }
+  h1 { font-size: 16pt; margin: 0 0 2px; letter-spacing: -0.4px; }
   h2 {
-    font-size: 10.2pt; margin: 8px 0 3px; color: #0f766e;
+    font-size: 9.8pt; margin: 7px 0 2px; color: #0f766e;
     text-transform: uppercase; letter-spacing: .07em;
   }
   p { margin: 2px 0; }
-  ul { margin: 2px 0 2px 15px; padding: 0; }
-  li { margin: 1.5px 0; }
-  table { width: 100%; border-collapse: collapse; margin: 3px 0; font-size: 8.6pt; }
-  th, td { border: 1px solid #d1d5db; padding: 2.4px 5px; text-align: left; }
+  ul { margin: 2px 0 2px 14px; padding: 0; }
+  li { margin: 1.2px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 2px 0; font-size: 8.2pt; }
+  th, td { border: 1px solid #d1d5db; padding: 2.1px 4px; text-align: left; }
   th { background: #f3f4f6; }
   .one { font-weight: 700; color: #0f766e; }
-  .note { color: #4b5563; font-size: 8.4pt; }
-  .row { display: flex; gap: 14px; }
-  .col { flex: 1; }
+  .note { color: #4b5563; font-size: 8.1pt; }
   a { color: #0f766e; text-decoration: none; }
 </style>
 </head>
 <body>
   <h1>LexiForge — Keyterm Health for Gnani Prisma v3.0</h1>
-  <p class="one">Gnani gives you 200 keyterm slots per call; LexiForge chooses the 200, checks them, and proves on your own calls whether they helped or hurt.</p>
+  <p class="one">Gnani gives you 200 keyterm slots per call; LexiForge measures what a candidate list does on your own calls — and proves whether it helped or hurt.</p>
 
   <h2>Problem</h2>
   <ul>
@@ -47,11 +45,12 @@
   <p><b>A</b> = critical terms (brand, product, must-have). <b>B</b> = all-real guardrail: keyterms must not wreck ordinary recognition.</p>
 
   <h2>Evidence — synthetic 4-call pilot</h2>
+  <p class="note"><b>The selected arm was brand-only, 8–9 terms — not a 200-term list.</b> "Fictional-name recall" means invented glossary names, not real bank brands. Output format: <code>transliterate</code>.</p>
   <table>
-    <thead><tr><th>Arm</th><th>Real recall</th><th>Brand recall</th><th>Insertions / utt</th></tr></thead>
+    <thead><tr><th>Arm</th><th>Real recall</th><th>Fictional-name recall</th><th>Insertions / utt</th></tr></thead>
     <tbody>
       <tr><td>baseline</td><td>21/23 (91.3%)</td><td>2/12 (16.7%)</td><td>0.00</td></tr>
-      <tr><td>selected-200</td><td>16/23 (69.6%)</td><td>10/12 (83.3%)</td><td>0.05</td></tr>
+      <tr><td>selected (brand-only, 8–9)</td><td>16/23 (69.6%)</td><td>10/12 (83.3%)</td><td>0.05</td></tr>
       <tr><td>mismatched-200</td><td>17/23 (73.9%)</td><td>3/12 (25.0%)</td><td>0.10</td></tr>
       <tr><td><b>oracle-200</b></td><td>19/23 (82.6%)</td><td><b>12/12 (100%)</b></td><td>0.10</td></tr>
     </tbody>
@@ -60,21 +59,22 @@
   <ul>
     <li><b>H1</b> (mismatched &lt; baseline real recall): −17.5pp, p = 0.062 — not rejected.</li>
     <li><b>H2</b> (mismatched &gt; baseline insertions): +0.10/utt, p = 0.503 — not rejected.</li>
-    <li><b>Positive control:</b> oracle − mismatched +9.17pp, CI [0, +18.3], passes.</li>
-    <li>At n=4 the smallest one-sided sign-flip p is 0.0625; this is descriptive only.</li>
+    <li><b>Pilot verdict</b> (selected vs baseline, B guardrail): real recall −22.5pp, CI [−36.7, −8.3] — <b>FAIL</b> under the −5pp margin.</li>
+    <li><b>Positive control:</b> oracle − mismatched +9.17pp, CI [0.0, +18.3] — direction consistent, <b>CI touches zero</b>.</li>
+    <li>At n=4 the smallest one-sided sign-flip p is 0.0625; descriptive only.</li>
   </ul>
-  <p><b>Key finding:</b> every keyterm list lowered real recall versus baseline — including the oracle — while brand recall moved exactly as intended (16.7% → 83.3–100%). The trade-off is the result, not a selector bug.</p>
+  <p><b>Key finding:</b> every keyterm list lowered real recall versus baseline — including the oracle — while fictional-name recall moved as intended (16.7% → 83.3–100%). <b>Open question:</b> ASR bias or romanisation drift? The per-term diff decides. Gnani has not measured transliterated-output accuracy, and the matcher has no transliteration; Hindi terms rely on pre-written romanised aliases.</p>
 
   <h2>Why Gnani</h2>
-  <p>Gnani sells the 200 slots and the model. LexiForge makes the 200 the right 200 and proves it on the customer's own audio: a POC accelerator, a glossary guardrail, and a measured capability for the keyterm feature Gnani already ships. It runs in-VPC for regulated BFSI deployments.</p>
+  <p>Gnani sells the 200 slots and the model. LexiForge measures what a list does on the customer's own audio: a POC accelerator, a glossary guardrail, and a measured capability for the keyterm feature Gnani already ships. Deployment alongside the customer's stack is a roadmap item; the pilot ran locally.</p>
 
   <h2>Status and limits</h2>
   <ul>
-    <li>Working end to end: Gnani REST + Batch clients, Timbre TTS, six arms, report, recording pack, 20 consistent scripts, 841 tests.</li>
+    <li>Working end to end: Gnani REST + Batch clients, Timbre TTS, six arms, report, recording pack, 20 consistent scripts, 841 tests, 47-case matcher gold set.</li>
     <li><b>Synthetic TTS only; no customer audio.</b> Internal harness validation.</li>
     <li>n=4 is underpowered; a 20-call run is required before any confirmatory claim.</li>
-    <li>Batch queue instability observed; REST with chunking is the reliable transport.</li>
-    <li>WER is format-sensitive and not quoted as recognition quality.</li>
+    <li>Batch queue instability observed; REST with chunking is the reliable transport. Calls over 30s are chunked, which can cut words and affect context — a confound.</li>
+    <li>Pilot audio was TTS; telephony processing exists in the repo but was not verified as applied here. WER is format-sensitive and not quoted as recognition quality.</li>
   </ul>
 
   <h2>Links</h2>
