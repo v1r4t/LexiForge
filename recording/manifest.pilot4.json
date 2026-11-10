@@ -1,0 +1,88 @@
+{
+  "study_id": "gnani-bfsi-pilot4",
+  "calls": [
+    {
+      "call_id": "c00",
+      "audio": "audio/c00.wav",
+      "reference": "refs/c00.txt",
+      "call_type": "mandate_fail",
+      "utterances": 5,
+      "mismatched_domain": "upi_failed",
+      "must_have": [],
+      "consent_ref": "consent.md",
+      "pii_status": "pending",
+      "expected_terms": [
+        "R0137",
+        "R0033",
+        "R0123",
+        "R0025",
+        "R0095",
+        "F0371",
+        "F0069",
+        "F0254"
+      ]
+    },
+    {
+      "call_id": "c01",
+      "audio": "audio/c01.wav",
+      "reference": "refs/c01.txt",
+      "call_type": "kyc_reverify",
+      "utterances": 5,
+      "mismatched_domain": "fraud_dispute",
+      "must_have": [],
+      "consent_ref": "consent.md",
+      "pii_status": "pending",
+      "expected_terms": [
+        "R0137",
+        "R0013",
+        "R0051",
+        "R0029",
+        "F0402",
+        "F0054",
+        "F0399"
+      ]
+    },
+    {
+      "call_id": "c02",
+      "audio": "audio/c02.wav",
+      "reference": "refs/c02.txt",
+      "call_type": "upi_failed",
+      "utterances": 5,
+      "mismatched_domain": "card_block",
+      "must_have": [],
+      "consent_ref": "consent.md",
+      "pii_status": "pending",
+      "expected_terms": [
+        "R0041",
+        "R0035",
+        "R0090",
+        "R0170",
+        "R0075",
+        "F0665",
+        "F0123",
+        "F0747"
+      ]
+    },
+    {
+      "call_id": "c03",
+      "audio": "audio/c03.wav",
+      "reference": "refs/c03.txt",
+      "call_type": "card_block",
+      "utterances": 5,
+      "mismatched_domain": "loan_foreclosure",
+      "must_have": [],
+      "consent_ref": "consent.md",
+      "pii_status": "pending",
+      "expected_terms": [
+        "R0160",
+        "R0176",
+        "R0152",
+        "R0038",
+        "R0006",
+        "F0154",
+        "F0253",
+        "F0169"
+      ]
+    }
+  ]
+}

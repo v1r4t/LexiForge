@@ -31,6 +31,7 @@ CALL_FIELDS = frozenset(
         "utterances",
         "mismatched_domain",
         "must_have",
+        "expected_terms",
         "consent_ref",
         "pii_status",
     }
@@ -96,16 +97,17 @@ def _validate_call(call: Any, index: int, seen: dict[str, int]) -> list[str]:
     if mismatched_domain is not None and not isinstance(mismatched_domain, str):
         errors.append(f"{prefix}.mismatched_domain must be a string")
 
-    must_have = call.get("must_have")
-    if must_have is not None:
-        if not isinstance(must_have, list):
-            errors.append(f"{prefix}.must_have must be a list of strings")
-        else:
-            for item_index, item in enumerate(must_have):
-                if not _is_text(item):
-                    errors.append(
-                        f"{prefix}.must_have[{item_index}] must be a non-empty string"
-                    )
+    for key in ("must_have", "expected_terms"):
+        values = call.get(key)
+        if values is not None:
+            if not isinstance(values, list):
+                errors.append(f"{prefix}.{key} must be a list of strings")
+            else:
+                for item_index, item in enumerate(values):
+                    if not _is_text(item):
+                        errors.append(
+                            f"{prefix}.{key}[{item_index}] must be a non-empty string"
+                        )
 
     for key in ("consent_ref", "pii_status"):
         value = call.get(key)
@@ -150,6 +152,9 @@ def _normalize_call(call: dict[str, Any]) -> dict[str, Any]:
         "mismatched_domain": call.get("mismatched_domain"),
         "utterances": int(call.get("utterances", 1)),
         "must_have": [str(item) for item in (call.get("must_have") or [])],
+        "expected_terms": [
+            str(item) for item in (call.get("expected_terms") or [])
+        ],
     }
     for key in ("consent_ref", "pii_status"):
         value = call.get(key)

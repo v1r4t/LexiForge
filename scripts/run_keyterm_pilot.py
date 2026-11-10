@@ -22,6 +22,8 @@ from pathlib import Path
 from typing import Any, Callable, Mapping
 
 ARM_NAMES = ("baseline", "selected-200", "mismatched-200", "hard-negative-200")
+EXTRA_ARM_NAMES = ("oracle-200", "static-head-200")
+ALL_ARM_NAMES = (*ARM_NAMES, *EXTRA_ARM_NAMES)
 
 INTERNAL_ONLY_LABEL = (
     "> **INTERNAL-ONLY** — pilot harness output; not customer evidence and not "
@@ -129,7 +131,11 @@ def _build_arms(
     pad_selected: bool = True,
     critical_only: bool = False,
     must_have=None,
+    requested_arms=None,
+    expected_terms=None,
+    core200_path: str = "data/core200.json",
 ) -> dict[str, list[str]]:
+    requested = tuple(requested_arms) if requested_arms else ARM_NAMES
     builder = arms_builder or _lazy_import_arm_builder()
     if builder is None:
         built = _fallback_build_arms(
@@ -147,10 +153,26 @@ def _build_arms(
             must_have=must_have,
         )
 
-    missing = [name for name in ARM_NAMES if name not in built]
+    if "oracle-200" in requested:
+        from lexiforge.contexts.oracle import build_oracle_200
+
+        if not expected_terms:
+            raise ValueError("oracle-200 requires expected terms")
+        built["oracle-200"] = build_oracle_200(
+            expected_terms, glossary, budget=budget, seed=seed
+        )
+    if "static-head-200" in requested:
+        from lexiforge.contexts.static_arm import static_head_terms
+
+        core = json.loads(Path(core200_path).read_text(encoding="utf-8"))
+        built["static-head-200"] = static_head_terms(
+            core["term_ids"], glossary, budget=budget
+        )
+
+    missing = [name for name in requested if name not in built]
     if missing:
         raise ValueError(f"arms builder did not return {missing}")
-    return {name: list(built[name]) for name in ARM_NAMES}
+    return {name: list(built[name]) for name in requested}
 
 
 def _batch_config(
@@ -330,7 +352,7 @@ def _score_arms(
     n_utterances = len(turns) if isinstance(turns, list) and turns else 1
 
     scored: list[dict[str, Any]] = []
-    for name in ARM_NAMES:
+    for name in rows_by_arm:
         hypothesis = _transcript_text(rows_by_arm.get(name) or {})
         detail = score_file_detail(reference_text, hypothesis, glossary)
         rows = [{"call_id": str(call), **row} for row in detail["rows"]]
@@ -477,6 +499,9 @@ def run_pilot(
     pad_selected=True,
     critical_only=False,
     must_have=None,
+    arms=None,
+    expected_terms=None,
+    core200_path="data/core200.json",
     arms_builder=None,
     validator=None,
     report_builder=None,
@@ -488,6 +513,13 @@ def run_pilot(
 
     script = dict(script) if script is not None else _load_script(call)
     call_type = str(script.get("call_type") or "general")
+    requested_arms = tuple(arms) if arms else ARM_NAMES
+    if expected_terms is None:
+        expected_terms = (
+            list(script.get("expected_terms") or [])
+            + list(script.get("expected_real") or [])
+            + list(script.get("expected_fictional") or [])
+        )
 
     plan: dict[str, Any] = {
         "call_id": call,
@@ -515,6 +547,9 @@ def run_pilot(
             pad_selected=pad_selected,
             critical_only=critical_only,
             must_have=must_have,
+            requested_arms=requested_arms,
+            expected_terms=expected_terms,
+            core200_path=core200_path,
             budget=budget,
             seed=seed,
         )
@@ -576,12 +611,15 @@ def run_pilot(
         pad_selected=pad_selected,
         critical_only=critical_only,
         must_have=must_have,
+        requested_arms=requested_arms,
+        expected_terms=expected_terms,
+        core200_path=core200_path,
     )
     plan["arms"] = arms
     plan["selection_source"] = "baseline pass-1 transcript"
     _write_json(plan_path, plan)
 
-    for arm in ARM_NAMES[1:]:
+    for arm in requested_arms[1:]:
         job_id, status, config = _run_arm(
             active_client,
             arm,
@@ -619,7 +657,7 @@ def run_pilot(
         "budget": budget,
         "seed": seed,
     }
-    prereg = {"arms": list(ARM_NAMES), "budget": budget, "call_type": call_type}
+    prereg = {"arms": list(requested_arms), "budget": budget, "call_type": call_type}
     scored_arms = _score_arms(
         call=call,
         rows_by_arm=rows_by_arm,

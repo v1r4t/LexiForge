@@ -94,6 +94,7 @@ def _call_script(call: Mapping[str, Any]) -> dict[str, Any]:
     return {
         "call_type": call.get("call_type") or "general",
         "mismatched_domain": call.get("mismatched_domain"),
+        "expected_terms": call.get("expected_terms") or [],
         "turns": [{"text": ""} for _ in range(int(call.get("utterances", 1)))],
     }
 
@@ -347,6 +348,18 @@ def run_study(
         )
 
     merged_arms = _merge_scored_arms(results, resolved_arms)
+    per_call = {
+        arm["name"]: [
+            row
+            for row in arm["rows"]
+            if any(key in row for key in ("real_recall", "insertions_per_utterance"))
+        ]
+        for arm in merged_arms
+    }
+    per_call_path = study_dir / "per_call.json"
+    per_call_path.write_text(
+        json.dumps(per_call, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
     from lexiforge.report.keyterm_health import build_report, render_markdown
 
     report = build_report(
@@ -375,6 +388,7 @@ def run_study(
             # Observed calls only: a planned-but-failed call is not evidence.
             "n_calls": report.get("n_calls") or len(observed_calls),
             "report": str(report_path),
+            "per_call": str(per_call_path),
         }
     )
     _write_summary(study_dir / "summary.json", summary)
@@ -422,7 +436,17 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Select only fictional/brand and must-have terms",
     )
+    parser.add_argument(
+        "--arms",
+        default=None,
+        help="Comma-separated arm names (default: the four pilot arms)",
+    )
     args = parser.parse_args(argv)
+    arm_list = (
+        [name.strip() for name in args.arms.split(",") if name.strip()]
+        if args.arms
+        else None
+    )
 
     from lexiforge.cli import _load_dotenv
 
@@ -455,6 +479,7 @@ def main(argv: list[str] | None = None) -> int:
         validator=validator,
         critical_only=args.critical_only,
         base_dir=Path(args.manifest).parent,
+        arms=arm_list,
     )
     if result.dry_run:
         print(f"Dry run for {manifest['study_id']}: {len(result.call_results)} call plans")

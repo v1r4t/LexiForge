@@ -494,6 +494,24 @@ def test_score_arms_emits_term_rows_and_wer():
     assert report["term_level"]["real"]["recovered"] == 1
 
 
+def test_dry_run_accepts_oracle_and_static_arms(tmp_path):
+    core = tmp_path / "core200.json"
+    core.write_text(json.dumps({"term_ids": ["T0", "T1"]}), encoding="utf-8")
+    result = run_pilot(
+        CALL,
+        tmp_path / "c00.wav",
+        GLOSSARY,
+        execute=False,
+        out_dir=tmp_path / "runs",
+        arms=("baseline", "oracle-200", "static-head-200"),
+        expected_terms=["T0", "T1"],
+        core200_path=str(core),
+    )
+    assert list(result.arms) == ["baseline", "oracle-200", "static-head-200"]
+    assert len(result.arms["oracle-200"]) == 200
+    assert len(result.arms["static-head-200"]) == 200
+
+
 def test_create_job_retries_clean_429(monkeypatch):
     from pathlib import Path
 

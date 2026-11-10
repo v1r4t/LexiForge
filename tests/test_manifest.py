@@ -55,6 +55,7 @@ def test_load_manifest_matches_legacy_loader_output(tmp_path):
                 "mismatched_domain": "upi_failed",
                 "utterances": 5,
                 "must_have": ["UPI", "NEFT"],
+                "expected_terms": [],
             }
         ],
     }
