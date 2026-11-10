@@ -15,6 +15,8 @@ LexiForge measures it.
 
 **One-page pitch:** [PITCH.md](PITCH.md) · [PITCH.pdf](PITCH.pdf)
 
+**Demo video (2:59):** [LexiForge walkthrough](https://drive.google.com/file/d/19U7eyzOz9nd2tsOUiXxLtK2olKTjtoQQ/view)
+
 ---
 
 ## The problem
