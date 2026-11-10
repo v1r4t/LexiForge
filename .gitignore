@@ -26,3 +26,6 @@ Thumbs.db
 web/data/*.json
 web/frontend/node_modules/
 web/frontend/dist/
+
+# Local social post assets (not part of the submission).
+linkedin/
